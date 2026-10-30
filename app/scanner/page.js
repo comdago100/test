@@ -57,7 +57,7 @@ export default function Scanner() {
   }
 
   return <main className="shell scanner-shell">
-    <header className="topbar"><Link href="/" className="brand"><span className="brand-icon"><Factory size={20}/></span><span>FOUNDRY<span className="brand-sub"> 공정 관리</span></span></Link><nav className="nav"><Link href="/">생산 현황</Link><Link href="/scanner/" className="nav-current">현장 스캔</Link></nav></header>
+    <header className="topbar"><Link href="/" className="brand"><span className="brand-icon"><Factory size={20}/></span><span>FOUNDRY<span className="brand-sub"> 공정 관리</span></span></Link><nav className="nav"><Link href="/">생산 현황</Link><Link href="/orders/">작업지시 관리</Link><Link href="/scanner/" className="nav-current">현장 스캔</Link></nav></header>
     <div className="scanner-content">
       <Link href="/" className="back-link"><ArrowLeft size={16}/> 생산 현황으로</Link>
       <div className="eyebrow"><span className="orange-dot"/> SHOP FLOOR</div>
