@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "inventory-ledger-2022"
+version = "1.1.1"
+description = "2022년 제조업 재고수불부 및 인쇄용 Excel"
+requires-python = ">=3.10"
+dependencies = ["PySide6>=6.6,<7", "pandas>=2.2,<3", "openpyxl>=3.1,<4", "numpy>=1.26,<3"]
+
+[project.optional-dependencies]
+build = ["pyinstaller>=6,<7"]
+
+[project.gui-scripts]
+inventory-ledger = "inventory_ledger.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
