@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+*.spec
+samples/
+output/
+
+.env
+.env.*
+!.env.example
+
+node_modules/
+.next/
+out/
