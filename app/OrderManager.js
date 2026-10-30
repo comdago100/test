@@ -1,26 +1,21 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Plus, X, Trash2, LockKeyhole, LogOut } from "lucide-react";
+import { Plus, X, Trash2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { validateOrderId } from "../lib/order-utils";
 
-function newId() {
-  const d = new Date();
-  const date = [String(d.getFullYear()).slice(-2), String(d.getMonth()+1).padStart(2,"0"), String(d.getDate()).padStart(2,"0")].join("");
-  return `WO-${date}-${crypto.randomUUID().slice(0,8).toUpperCase()}`;
-}
-const blank = () => ({ wo_id: newId(), client_code:"", item_code:"", target_qty:"", due_date:"", start_date:"", actual_qty:"", unit_weight_kg:"", heat_no:"", casting_material:"", notes:"" });
+
+const blank = () => ({ wo_id: "", client_code:"", item_code:"", target_qty:"", due_date:"", start_date:"", actual_qty:"", unit_weight_kg:"", heat_no:"", casting_material:"", notes:"" });
 const fields = ["wo_id","client_code","item_code","target_qty","due_date","start_date","actual_qty","unit_weight_kg","heat_no","casting_material","notes"];
 function msg(error) {
+  if (error?.code === "23505") return "이미 사용 중인 번호 또는 코드입니다. 다른 값을 입력하세요.";
+  if (error?.code === "42501" || error?.message?.includes("관리자 권한")) return "로그인 없는 저장을 위한 DB 권한 설정이 아직 적용되지 않았습니다. 설정 SQL을 실행해 주세요.";
   const text = error?.message || "처리하지 못했습니다. 연결 상태를 확인하세요.";
   if (text.includes("save_production_order") || text.includes("delete_production_order") || text.includes("schema cache")) return "DB 설정이 필요합니다. 관리자에게 데이터베이스 설정을 요청하세요.";
   return text;
 }
 
 export default function OrderManager({ mode, order, usage, clients, items, materials, close, onSaved }) {
-  const [session, setSession] = useState(null);
-  const [authReady, setAuthReady] = useState(false);
-  const [email,setEmail] = useState("");
-  const [password,setPassword] = useState("");
   const [form,setForm] = useState(null);
   const [rows,setRows] = useState([]);
   const [error,setError] = useState("");
@@ -29,12 +24,6 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
   const [masterCode,setMasterCode] = useState("");
   const [masterName,setMasterName] = useState("");
 
-  useEffect(() => {
-    if (!supabase) { setAuthReady(true); return; }
-    supabase.auth.getSession().then(({data}) => {setSession(data.session);setAuthReady(true);});
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
-    return () => subscription.subscription.unsubscribe();
-  }, []);
   useEffect(() => {
     if (mode === "create") { setForm(blank()); setRows([]); }
     if (mode === "edit" && order) {
@@ -47,20 +36,16 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
   if (!mode) return null;
   function change(key,value) { setForm(old => ({...old,[key]:value})); }
   function rowChange(index,key,value) { setRows(old => old.map((x,i) => i === index ? {...x,[key]:value} : x)); }
-  async function login(e) {
-    e.preventDefault(); setBusy(true); setError("");
-    const {error} = await supabase.auth.signInWithPassword({email:email.trim(), password});
-    if (error) setError("로그인하지 못했습니다. 이메일과 비밀번호를 확인하세요.");
-    setPassword(""); setBusy(false);
-  }
   async function save(e) {
     e.preventDefault(); setError("");
+    const idError = validateOrderId(form.wo_id);
+    if (idError) return setError(idError);
     if (!form.client_code || !form.item_code || !Number.isFinite(Number(form.target_qty)) || Number(form.target_qty) <= 0) return setError("거래처, 품목, 목표 수량을 확인하세요.");
     if (form.actual_qty !== "" && Number(form.actual_qty) < 0 || form.unit_weight_kg !== "" && Number(form.unit_weight_kg) < 0) return setError("수량과 중량은 0 이상이어야 합니다.");
     if (rows.some(x => !x.raw_code || !Number.isFinite(Number(x.input_qty)) || Number(x.input_qty) <= 0)) return setError("자재별 원재료와 투입량을 확인하세요.");
     if (form.start_date && form.due_date && form.start_date > form.due_date) return setError("납기일은 작업 시작일보다 빠를 수 없습니다.");
     setBusy(true);
-    const {error} = await supabase.rpc("save_production_order", {p_order:form, p_materials:rows, p_create:mode==="create", p_original_usage_ids:usage.map(x=>String(x.usage_id))});
+    const {error} = await supabase.rpc("save_production_order", {p_order:{...form, wo_id:form.wo_id.trim()}, p_materials:rows, p_create:mode==="create", p_original_usage_ids:usage.map(x=>String(x.usage_id))});
     setBusy(false);
     if (error) {setError(msg(error));return;}
     await onSaved(); close();
@@ -85,12 +70,11 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
   }
   return <div className="modal-backdrop" onMouseDown={e => {if(e.target===e.currentTarget && !busy) close();}}><section className="manager-modal" role="dialog" aria-modal="true" aria-labelledby="manager-title">
     <div className="modal-heading"><div><span className="section-kicker">WORK ORDER MANAGEMENT</span><h2 id="manager-title">{mode==="create"?"작업지시 등록":"작업지시 수정"}</h2><p>작업 내용과 실제 투입 자재를 관리합니다.</p></div><button className="icon-btn" onClick={close} aria-label="닫기"><X size={18}/></button></div>
-    {!authReady ? <div className="empty">관리자 계정 확인 중...</div> : !supabase ? <div className="alert">Supabase 연결 설정이 필요합니다.</div> : !session ? <form onSubmit={login} className="login-form"><LockKeyhole size={26}/><h3>관리자 로그인</h3><p>작업지시 변경은 등록된 관리자만 가능합니다.</p><label>이메일<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoComplete="username"/></label><label>비밀번호<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required autoComplete="current-password"/></label>{error && <div className="alert" role="alert">{error}</div>}<button className="primary-btn" disabled={busy}>{busy?"로그인 중":"로그인"}</button></form> : form && <form onSubmit={save}>
-      <div className="account-line"><span>{session.user.email}</span><button type="button" onClick={() => supabase.auth.signOut()}><LogOut size={14}/> 로그아웃</button></div>
+    {!supabase ? <div className="alert">Supabase 연결 설정이 필요합니다.</div> : form && <form onSubmit={save}>
       <div className="master-tools"><span>기초정보 등록</span>{[["client","거래처"],["item","품목"],["material","원재료"]].map(([kind,label])=><button type="button" key={kind} onClick={()=>{setMaster(kind);setMasterCode("");setMasterName("");setError("");}}><Plus size={13}/> {label}</button>)}</div>
       {master && <div className="master-form"><strong>{master==="client"?"거래처":master==="item"?"품목":"원재료"} 추가</strong><input aria-label="코드" placeholder="코드" value={masterCode} onChange={e=>setMasterCode(e.target.value)}/><input aria-label="이름" placeholder="이름" value={masterName} onChange={e=>setMasterName(e.target.value)}/><button type="button" className="secondary-btn" onClick={addMaster} disabled={busy}>등록</button><button type="button" className="icon-btn" aria-label="기초정보 등록 닫기" onClick={()=>setMaster(null)}><X size={16}/></button></div>}
       <div className="form-section"><h3>기본 정보</h3><div className="form-grid">
-        <label>작업지시 번호<input value={form.wo_id} readOnly /></label>
+        <label>작업지시 번호 <em>*</em><input value={form.wo_id} onChange={e=>change("wo_id",e.target.value)} readOnly={mode==="edit"} required maxLength={80} placeholder="예: WO-20261030-001"/>{mode==="edit" && <small>등록된 번호는 자재 내역과 연결되어 변경할 수 없습니다.</small>}</label>
         <label>거래처 <em>*</em><select required value={form.client_code} onChange={e=>change("client_code",e.target.value)}><option value="">선택하세요</option>{clients.map(x=><option key={x.client_code} value={x.client_code}>{x.client_name} ({x.client_code})</option>)}</select></label>
         <label>품목 <em>*</em><select required value={form.item_code} onChange={e=>change("item_code",e.target.value)}><option value="">선택하세요</option>{items.map(x=><option key={x.item_code} value={x.item_code}>{x.item_name} ({x.item_code})</option>)}</select></label>
         <label>목표 수량 (개) <em>*</em><input type="number" min="1" step="1" required value={form.target_qty} onChange={e=>change("target_qty",e.target.value)}/></label>

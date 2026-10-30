@@ -1,4 +1,5 @@
 import "./globals.css";
+import DeploymentNotice from "./DeploymentNotice";
 
 export const metadata = {
   title: "주조 공정 관리",
@@ -6,5 +7,5 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
-  return <html lang="ko"><body>{children}</body></html>;
+  return <html lang="ko"><body><DeploymentNotice/>{children}</body></html>;
 }
