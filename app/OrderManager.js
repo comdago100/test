@@ -20,10 +20,6 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
   const [rows,setRows] = useState([]);
   const [error,setError] = useState("");
   const [busy,setBusy] = useState(false);
-  const [master,setMaster] = useState(null);
-  const [masterCode,setMasterCode] = useState("");
-  const [masterName,setMasterName] = useState("");
-
   useEffect(() => {
     if (mode === "create") { setForm(blank()); setRows([]); }
     if (mode === "edit" && order) {
@@ -50,16 +46,6 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
     if (error) {setError(msg(error));return;}
     await onSaved(); close();
   }
-  async function addMaster() {
-    if (!masterCode.trim() || !masterName.trim()) {setError("코드와 이름을 입력하세요.");return;}
-    setBusy(true);setError("");
-    const {error} = await supabase.rpc("create_production_master",{p_kind:master,p_code:masterCode.trim(),p_name:masterName.trim()});
-    if (error) {setError(msg(error));setBusy(false);return;}
-    await onSaved();
-    if (master === "client") change("client_code",masterCode.trim());
-    if (master === "item") change("item_code",masterCode.trim());
-    setMaster(null);setMasterCode("");setMasterName("");setBusy(false);
-  }
   async function remove() {
     if (!window.confirm(`[${order.wo_id}] 작업지시와 연결된 자재 투입 내역을 영구 삭제합니다. 계속하시겠습니까?`)) return;
     setBusy(true);setError("");
@@ -71,8 +57,7 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
   return <div className="modal-backdrop" onMouseDown={e => {if(e.target===e.currentTarget && !busy) close();}}><section className="manager-modal" role="dialog" aria-modal="true" aria-labelledby="manager-title">
     <div className="modal-heading"><div><span className="section-kicker">WORK ORDER MANAGEMENT</span><h2 id="manager-title">{mode==="create"?"작업지시 등록":"작업지시 수정"}</h2><p>작업 내용과 실제 투입 자재를 관리합니다.</p></div><button className="icon-btn" onClick={close} aria-label="닫기"><X size={18}/></button></div>
     {!supabase ? <div className="alert">Supabase 연결 설정이 필요합니다.</div> : form && <form onSubmit={save}>
-      <div className="master-tools"><span>기초정보 등록</span>{[["client","거래처"],["item","품목"],["material","원재료"]].map(([kind,label])=><button type="button" key={kind} onClick={()=>{setMaster(kind);setMasterCode("");setMasterName("");setError("");}}><Plus size={13}/> {label}</button>)}</div>
-      {master && <div className="master-form"><strong>{master==="client"?"거래처":master==="item"?"품목":"원재료"} 추가</strong><input aria-label="코드" placeholder="코드" value={masterCode} onChange={e=>setMasterCode(e.target.value)}/><input aria-label="이름" placeholder="이름" value={masterName} onChange={e=>setMasterName(e.target.value)}/><button type="button" className="secondary-btn" onClick={addMaster} disabled={busy}>등록</button><button type="button" className="icon-btn" aria-label="기초정보 등록 닫기" onClick={()=>setMaster(null)}><X size={16}/></button></div>}
+      <p className="registry-hint">거래처·품목·원재료는 상단의 각 등록 메뉴에서 먼저 등록한 뒤 선택하세요.</p>
       <div className="form-section"><h3>기본 정보</h3><div className="form-grid">
         <label>작업지시 번호 <em>*</em><input value={form.wo_id} onChange={e=>change("wo_id",e.target.value)} readOnly={mode==="edit"} required maxLength={80} placeholder="예: WO-20261030-001"/>{mode==="edit" && <small>등록된 번호는 자재 내역과 연결되어 변경할 수 없습니다.</small>}</label>
         <label>거래처 <em>*</em><select required value={form.client_code} onChange={e=>change("client_code",e.target.value)}><option value="">선택하세요</option>{clients.map(x=><option key={x.client_code} value={x.client_code}>{x.client_name} ({x.client_code})</option>)}</select></label>

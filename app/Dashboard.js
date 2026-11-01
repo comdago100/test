@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import AppNav from "./AppNav";
 import { Activity, ArrowRight, Boxes, CheckCircle2, Clock3, Factory, Layers3, RefreshCw, ScanLine, Search, Plus } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import OrderManager from "./OrderManager";
@@ -65,7 +66,7 @@ export default function Dashboard({ manage = false }) {
   return <main className="shell">
     <header className="topbar">
       <Link href="/" className="brand"><span className="brand-icon"><Factory size={20}/></span><span>FOUNDRY<span className="brand-sub"> 공정 관리</span></span></Link>
-      <nav className="nav"><Link href="/" className={!manage ? "nav-current" : ""}>생산 현황</Link><Link href="/orders/" className={manage ? "nav-current" : ""}>작업지시 관리</Link><Link href="/scanner/">현장 스캔</Link></nav>
+      <AppNav/>
       <span className="top-status"><span className={error ? "dot bad" : "dot"}/>{error ? "연결 확인" : "시스템 운영 중"}</span>
     </header>
     <div className="content">
