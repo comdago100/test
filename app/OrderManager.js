@@ -40,7 +40,7 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
     e.preventDefault(); setError("");
     const idError = validateOrderId(form.wo_id);
     if (idError) return setError(idError);
-    if (!form.client_code || !form.item_code || !Number.isFinite(Number(form.target_qty)) || Number(form.target_qty) <= 0) return setError("거래처, 품목, 목표 수량을 확인하세요.");
+    if (!form.client_code || !form.item_code || !Number.isSafeInteger(Number(form.target_qty)) || Number(form.target_qty) <= 0 || Number(form.target_qty) > 2147483647) return setError("거래처, 품목, 목표 수량을 확인하세요.");
     if (form.actual_qty !== "" && Number(form.actual_qty) < 0 || form.unit_weight_kg !== "" && Number(form.unit_weight_kg) < 0) return setError("수량과 중량은 0 이상이어야 합니다.");
     if (rows.some(x => !x.raw_code || !Number.isFinite(Number(x.input_qty)) || Number(x.input_qty) <= 0)) return setError("자재별 원재료와 투입량을 확인하세요.");
     if (form.start_date && form.due_date && form.start_date > form.due_date) return setError("납기일은 작업 시작일보다 빠를 수 없습니다.");
@@ -61,7 +61,7 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
     setMaster(null);setMasterCode("");setMasterName("");setBusy(false);
   }
   async function remove() {
-    if (!window.confirm(`[${order.wo_id}] 작업지시와 연결된 자재 투입 내역을 영구 삭제합니다. 계속하시겠습니까?`)) return;
+    if (!window.confirm(`[${order.wo_id}] 작업지시와 연결된 자재 투입 내역 및 공정 처리 이력을 영구 삭제합니다. 계속하시겠습니까?`)) return;
     setBusy(true);setError("");
     const {error} = await supabase.rpc("delete_production_order", {p_wo_id:order.wo_id});
     setBusy(false);
@@ -80,7 +80,7 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
         <label>목표 수량 (개) <em>*</em><input type="number" min="1" step="1" required value={form.target_qty} onChange={e=>change("target_qty",e.target.value)}/></label>
         <label>작업 시작일<input type="date" value={form.start_date} onChange={e=>change("start_date",e.target.value)}/></label>
         <label>납기일<input type="date" value={form.due_date} onChange={e=>change("due_date",e.target.value)}/></label>
-        <label>실제 생산량 (개)<input type="number" min="0" step="1" value={form.actual_qty} onChange={e=>change("actual_qty",e.target.value)}/></label>
+        <label>검사 완료 수량 (자동)<input type="number" readOnly value={form.actual_qty || 0}/><small>현장 스캐너의 검사 완료 실적에서 자동 계산합니다.</small></label>
         <label>제품 단중 (kg)<input type="number" min="0" step="0.01" value={form.unit_weight_kg} onChange={e=>change("unit_weight_kg",e.target.value)}/></label>
         <label>용해 번호 / 로트<input value={form.heat_no} onChange={e=>change("heat_no",e.target.value)} maxLength={120}/></label>
         <label>주물 재질<input value={form.casting_material} onChange={e=>change("casting_material",e.target.value)} maxLength={120} placeholder="예: FC250"/></label>

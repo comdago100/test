@@ -6,13 +6,14 @@ from PySide6.QtGui import QColor, QFont
 
 
 from supabase_config import supabase
+from production_quantities import display_quantities
 
 
 class LiveDashboard(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("에스앤더블류 - 실시간 생산 현황판 (사무실용)")
-        self.setGeometry(100, 100, 1000, 600)
+        self.setGeometry(100, 100, 1300, 600)
 
         layout = QVBoxLayout()
 
@@ -32,9 +33,10 @@ class LiveDashboard(QMainWindow):
 
         # 데이터 테이블
         self.table = QTableWidget()
-        self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["지시서 번호", "거래처", "품목", "목표 수량", "현재 공정 상태"])
+        self.table.setColumnCount(8)
+        self.table.setHorizontalHeaderLabels(["지시서 번호", "거래처", "품목", "목표 수량", "현재 공정 상태", "공정별 누적 완료", "누적 출고", "출고 잔량"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
         self.table.setFont(QFont("Arial", 12))
         
         # 행 높이 넉넉하게 설정
@@ -74,7 +76,7 @@ class LiveDashboard(QMainWindow):
                 self.table.setItem(row_idx, 3, qty_item)
                 
                 # 현재 공정 상태 표기 및 상태별 색상 하이라이트
-                status_text = wo.get('current_step', '')
+                status_text, summary, shipped, remaining = display_quantities(wo)
                 status_item = QTableWidgetItem(status_text)
                 status_item.setTextAlignment(Qt.AlignCenter)
                 status_item.setFont(QFont("Arial", 12, QFont.Bold))
@@ -90,6 +92,9 @@ class LiveDashboard(QMainWindow):
                     status_item.setBackground(QColor(144, 238, 144)) # 연두색 (완료 느낌)
                     
                 self.table.setItem(row_idx, 4, status_item)
+                for column, text in enumerate((summary, shipped, remaining), start=5):
+                    self.table.setItem(row_idx, column, QTableWidgetItem(text))
+            self.table.resizeRowsToContents()
 
             # 마지막 업데이트 시간 갱신
             from datetime import datetime

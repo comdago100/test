@@ -66,7 +66,7 @@ class MeltingWindow(QMainWindow):
         layout.addWidget(self.mat_group)
 
         # 3. 저장 버튼
-        self.btn_save = QPushButton("데이터 저장 및 주입 완료 처리")
+        self.btn_save = QPushButton("자재 투입량 저장")
         self.btn_save.setMinimumHeight(60)
         self.btn_save.setFont(QFont("Arial", 16, QFont.Bold))
         self.btn_save.setStyleSheet("background-color: #4CAF50; color: white;")
@@ -128,8 +128,7 @@ class MeltingWindow(QMainWindow):
                         "input_qty": qty
                     }).execute()
 
-            # 2. 작업지시서의 현재 상태를 '주입완료(자재투입)'으로 변경
-            supabase.table('work_orders').update({"current_step": "주입완료(자재투입)"}).eq("wo_id", self.current_wo_id).execute()
+            # 자재 중량과 제품 완료 수량은 별개입니다. 공정 실적은 수량 스캐너에서 기록합니다.
 
             QMessageBox.information(self, "성공", "투입량 기록이 완료되었습니다.")
             
