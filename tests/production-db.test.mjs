@@ -58,8 +58,64 @@ before(async () => {
       ('old-shipped',100,'출고완료',100), ('old-zero',100,'주입완료',null);
   `);
   await db.exec(await sqlFile("partial_production.sql"));
+  await db.exec(await sqlFile("client_management.sql"));
+  await db.exec(await sqlFile("routing_management.sql"));
 });
 after(async () => { await db?.close(); });
+
+async function saveClient(client,create=true,expected=null) {
+  return (await db.query("select public.save_production_client($1,$2,$3) as result",
+    [JSON.stringify({client_type:"customer",is_active:true,...client}),create,expected])).rows[0].result;
+}
+test("client profiles create and update all business fields without losing legacy contacts",async()=>{
+  const fields={client_code:"PROFILE",client_name:"거래처",client_type:"both",business_number:"123-45-67890",
+    representative:"대표",business_type:"제조업",business_item:"주조",contact_name:"담당자",phone:"02-1234-5678",
+    contact_phone:"010-1234-5678",fax:"02-1234-5679",email:"buyer@example.com",tax_email:"tax@example.com",
+    postal_code:"00123",address:"사업장 주소",shipping_address:"납품 공장",payment_terms:"월말 마감",
+    delivery_notes:"오전 입고",notes:"검사 기준 확인"};
+  const created=await saveClient(fields);
+  for(const [key,value] of Object.entries({...fields,business_number:"1234567890"})) assert.equal(created[key],value);
+  await db.query("update public.clients set contact_info='기존 번호' where client_code='PROFILE'");
+  const snapshot=(await db.query("select * from public.clients where client_code='PROFILE'")).rows[0];
+  const updated=await saveClient({...fields,client_name:"수정한 거래처"},false,snapshot.client_updated_at.toISOString());
+  assert.equal(updated.contact_info,"기존 번호");
+  assert.equal(updated.client_name,"수정한 거래처");
+  await assert.rejects(saveClient({...fields,client_name:"오래된 수정"},false,created.client_updated_at),/다른 사용자가/);
+});
+test("invalid client data and duplicate codes do not partially save",async()=>{
+  for(const patch of [{business_number:"123"},{postal_code:"1234"},{email:"invalid"},{client_type:"invalid"},
+    {is_active:"false"},{phone:"x".repeat(51)},{client_name:""},{client_code:"HAS SPACE"}]) {
+    await assert.rejects(saveClient({client_code:"INVALID",client_name:"거래처",...patch}));
+  }
+  assert.equal((await db.query("select count(*)::integer as n from public.clients where client_code='INVALID'")).rows[0].n,0);
+  await saveClient({client_code:"DUP",client_name:"원본"});
+  await assert.rejects(saveClient({client_code:"DUP",client_name:"다른 이름"}),/duplicate key/);
+  assert.equal((await db.query("select client_name from public.clients where client_code='DUP'")).rows[0].client_name,"원본");
+});
+test("stopping a client blocks new orders while preserving edits and history of existing orders",async()=>{
+  const client=await saveClient({client_code:"STOP",client_name:"일시중지 거래처"});
+  await db.query("insert into public.work_orders(wo_id,client_code,item_code,target_qty) values('OLD-STOP','STOP','I',10)");
+  await saveClient({...client,is_active:false},false,client.client_updated_at);
+  await assert.rejects(db.query("insert into public.work_orders(wo_id,client_code,item_code,target_qty) values('NEW-STOP','STOP','I',10)"),/거래중지/);
+  await assert.rejects(db.query("select public.save_production_order($1,'[]',true,'[]')",[JSON.stringify({wo_id:"RPC-STOP",client_code:"STOP",item_code:"I",target_qty:10})]),/거래중지/);
+  await db.query("select public.save_production_order($1,'[]',false,'[]')",[JSON.stringify({wo_id:"OLD-STOP",client_code:"STOP",item_code:"I",target_qty:10,notes:"기존 작업 수정"})]);
+  assert.equal((await current("OLD-STOP")).notes,"기존 작업 수정");
+});
+test("client migration is repeatable and the RPC keeps the configured login mode",async()=>{
+  const before=(await db.query("select to_jsonb(c) as row from public.clients c where client_code='PROFILE'")).rows[0].row;
+  await db.exec(await sqlFile("client_management.sql"));
+  assert.deepEqual((await db.query("select to_jsonb(c) as row from public.clients c where client_code='PROFILE'")).rows[0].row,before);
+  await db.exec("set role anon");
+  try {await saveClient({client_code:"PUBLIC-CLIENT",client_name:"공개 모드 거래처"});}
+  finally {await db.exec("reset role");}
+  await db.exec("revoke execute on function public.create_production_master(text,text,text) from anon");
+  await db.exec("set role anon");
+  try {await assert.rejects(saveClient({client_code:"DENIED-CLIENT",client_name:"권한 확인"}),/관리자 권한/);}
+  finally {
+    await db.exec("reset role");
+    await db.exec("grant execute on function public.create_production_master(text,text,text) to anon");
+  }
+});
 
 test("migration preserves old statuses and requires actual opening counts for progressed orders", async () => {
   assert.equal((await current("old-waiting")).quantity_confirmed, true);
@@ -207,4 +263,82 @@ test("reapplying the migration keeps all production counts and old confirmations
   assert.deepEqual(await current("old-progress"), before);
   assert.equal(await eventCount("old-progress"), n);
   assert.equal((await current("old-shipped")).quantity_confirmed, false);
+});
+
+async function routed(code="CAST",target=100) {
+  const id=randomUUID();
+  const result=await db.query("select public.save_routed_production_order($1,'[]',true,'[]') as result",
+    [JSON.stringify({wo_id:id,client_code:"C",item_code:"I",target_qty:target,routing_code:code})]);
+  return result.rows[0].result;
+}
+async function routing(code) {return (await db.query("select * from public.production_routings where routing_code=$1",[code])).rows[0];}
+async function saveRoute(route,create=false) {return (await db.query("select public.save_production_routing($1,$2,$3) as result",[JSON.stringify(route),create,create?null:route.revision])).rows[0].result;}
+
+test("casting and purchased goods use independent snapshots and terminal shipment indices",async()=>{
+  // The preceding backwards-compatibility test deliberately reinstalled the old guard.
+  await db.exec(await sqlFile("routing_management.sql"));
+  for(const [code,length] of [["CAST",8],["TRADE",4]]) {
+    let row=await routed(code);
+    assert.equal(row.routing_steps.length,length);
+    for(let i=0;i<length;i++) row=await record(row.wo_id,i,17);
+    assert.equal(row.current_step,"부분출고");
+    assert.equal(getProgress(row).shipped,17);
+    assert.equal(getProgress(row).remaining,83);
+    assert.equal(row.actual_qty,17);
+    await assert.rejects(record(row.wo_id,length,1),/공정과 처리 수량/);
+    await assert.rejects(record(row.wo_id,length-1,1),/초과/);
+    for(let i=0;i<length;i++) row=await record(row.wo_id,i,83);
+    assert.equal(row.current_step,"출고완료");
+    assert.equal(getProgress(row).complete,true);
+  }
+});
+test("editing and reordering routing stages never changes issued orders or ledger indices",async()=>{
+  const original=await routing("CAST"), issued=await routed();
+  const first=await record(issued.wo_id,0,19);
+  const draft={...original,steps:original.steps.map(s=>({...s}))};
+  draft.steps[0].name="수정된 조형";
+  [draft.steps[2],draft.steps[3]]=[draft.steps[3],draft.steps[2]];
+  const saved=await saveRoute(draft);
+  const old=await current(issued.wo_id),next=await routed();
+  assert.deepEqual(old.routing_steps,issued.routing_steps);
+  assert.deepEqual(old.process_quantities,first.process_quantities);
+  assert.equal(next.routing_steps[0].name,"수정된 조형");
+  assert.equal(next.routing_steps[2].name,"쇼트");
+  await assert.rejects(db.query("update public.work_orders set routing_steps=$2 where wo_id=$1",[issued.wo_id,JSON.stringify(next.routing_steps)]),/발행된 작업지시/);
+  await assert.rejects(saveRoute(draft),/다른 사용자가/);
+  await saveRoute({...original,revision:saved.revision});
+});
+test("route CRUD validates terminal shipment, duplicates, missing steps and atomic creation",async()=>{
+  const source=await routing("TRADE");
+  for(const steps of [[],[source.steps[0]], [...source.steps,source.steps[0]],
+    [source.steps[0],source.steps[0],source.steps[3]],
+    [{...source.steps[0],name:42},source.steps[3]]]) {
+    await assert.rejects(saveRoute({...source,routing_code:"INVALID",steps},true));
+    assert.equal(await routing("INVALID"),undefined);
+  }
+  const made=await saveRoute({...source,routing_code:"COPY",routing_name:"매입 복사"},true);
+  const deleted=(await db.query("select public.delete_production_routing($1,$2) as result",[made.routing_code,made.revision])).rows[0].result;
+  assert.equal(deleted.archived,false);
+  assert.equal(await routing("COPY"),undefined);
+});
+test("deleting a used route archives it and preserves existing work while blocking new orders",async()=>{
+  const source=await routing("TRADE");
+  const custom=await saveRoute({...source,routing_code:"USED",routing_name:"보관 테스트"},true);
+  const issued=await routed("USED");
+  const deleted=(await db.query("select public.delete_production_routing($1,$2) as result",["USED",custom.revision])).rows[0].result;
+  assert.equal(deleted.archived,true);
+  await assert.rejects(routed("USED"),/사용 가능한 라우팅/);
+  assert.equal((await record(issued.wo_id,0,9)).process_quantities.receipt,9);
+  assert.equal((await current(issued.wo_id)).routing_name,"보관 테스트");
+});
+test("routing migration repeats without replacing custom definitions, quantities or permission mode",async()=>{
+  const issued=await routed("CAST");await record(issued.wo_id,0,11);
+  const before=await current(issued.wo_id),used=await routing("USED");
+  await db.exec(await sqlFile("routing_management.sql"));
+  assert.deepEqual(await current(issued.wo_id),before);
+  assert.deepEqual(await routing("USED"),used);
+  await db.exec("revoke execute on function public.create_production_master(text,text,text) from anon");
+  try {
+    await assert.rejects(saveRoute({...await routing("TRADE"),routing_code:"UNAUTHORIZED"},true),/관리자 권한/);
+  }finally{await db.exec("grant execute on function public.create_production_master(text,text,text) to anon");}
 });

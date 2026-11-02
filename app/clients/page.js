@@ -1,3 +1,3 @@
-import MasterRegistry from "../MasterRegistry";
+import ClientRegistry from "../ClientRegistry";
 
-export default function ClientsPage() { return <MasterRegistry kind="client"/>; }
+export default function ClientsPage() { return <ClientRegistry/>; }

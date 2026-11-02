@@ -2,6 +2,7 @@ import sys
 import os
 import qrcode
 import webbrowser
+from html import escape
 from datetime import datetime
 from PySide6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, 
                                QWidget, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QMessageBox)
@@ -10,6 +11,7 @@ from PySide6.QtGui import QFont
 
 from supabase_config import supabase
 from production_codes import build_order_url
+from production_quantities import order_steps
 
 
 class WorkOrderPrinter(QMainWindow):
@@ -53,6 +55,22 @@ class WorkOrderPrinter(QMainWindow):
         self.spin_qty.setSuffix(" 개")
         layout.addWidget(self.spin_qty)
 
+        layout.addWidget(QLabel("5. 라우팅 선택"))
+        self.combo_routing = QComboBox()
+        self.routing_load_error = ""
+        try:
+            routes = supabase.table("production_routings").select("*").eq("is_active", True).order("routing_code").execute().data
+            for route in routes:
+                self.combo_routing.addItem(route["routing_name"], route)
+            if not routes:
+                self.routing_load_error = "웹 라우팅 관리에서 사용 가능한 라우팅을 등록하세요."
+        except Exception as error:
+            if getattr(error, "code", "") in ("42P01", "PGRST205"):
+                self.combo_routing.addItem("기존 6공정 (라우팅 DB 설정 필요)", None)
+            else:
+                self.routing_load_error = "라우팅을 불러오지 못했습니다. 연결을 확인한 뒤 프로그램을 다시 열어 주세요."
+        layout.addWidget(self.combo_routing)
+
         layout.addSpacing(20)
 
         # 5. 발행 버튼
@@ -68,6 +86,9 @@ class WorkOrderPrinter(QMainWindow):
         self.setCentralWidget(widget)
 
     def generate_and_print(self):
+        if self.routing_load_error:
+            QMessageBox.warning(self, "라우팅 확인", self.routing_load_error)
+            return
         now = datetime.now()
         wo_id = f"WO-{now.strftime('%y%m%d')}-{now.strftime('%H%M%S')}"
         
@@ -93,13 +114,19 @@ class WorkOrderPrinter(QMainWindow):
 
         # 2. 작업지시서(work_orders) DB 저장
         try:
-            supabase.table('work_orders').insert({
+            route = self.combo_routing.currentData()
+            payload = {
                 "wo_id": wo_id,
                 "client_code": client_code,
                 "item_code": item_code,
                 "target_qty": target_qty,
                 "current_step": "발행대기"
-            }).execute()
+            }
+            if route:
+                payload["routing_code"] = route["routing_code"]
+            created = supabase.table('work_orders').insert(payload).execute().data[0]
+            routing_name = escape(created.get("routing_name") or "기존 6공정")
+            routing_flow = " → ".join(escape(stage["name"]) for stage in order_steps(created))
         except Exception as e:
             QMessageBox.warning(self, "오류", "DB 저장 중 문제가 발생했습니다.")
             return
@@ -140,11 +167,11 @@ class WorkOrderPrinter(QMainWindow):
                 </tr>
                 <tr>
                     <th>납품 거래처</th>
-                    <td>{client_name}</td>
+                    <td>{escape(client_name)}</td>
                 </tr>
                 <tr>
                     <th>생산 품목</th>
-                    <td style="font-weight: bold; color: #D32F2F;">{item_name}</td>
+                    <td style="font-weight: bold; color: #D32F2F;">{escape(item_name)}</td>
                 </tr>
                 <tr>
                     <th>투입 중량</th>
@@ -160,6 +187,7 @@ class WorkOrderPrinter(QMainWindow):
                 </tr>
             </table>
             
+            <p><b>라우팅: {routing_name}</b><br>{routing_flow}</p>
             <div class="memo-box">
                 <b>[현장 작업 메모 및 특이사항]</b>
             </div>
