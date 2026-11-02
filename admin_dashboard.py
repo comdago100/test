@@ -5,13 +5,14 @@ from PySide6.QtCore import Qt
 
 
 from supabase_config import supabase
+from production_quantities import display_quantities
 
 
 class AdminDashboard(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("에스앤더블류 - 생산 현황판 (사무실 모니터링)")
-        self.setGeometry(100, 100, 800, 400)
+        self.setGeometry(100, 100, 1200, 500)
 
         layout = QVBoxLayout()
 
@@ -23,10 +24,12 @@ class AdminDashboard(QMainWindow):
 
         # 데이터를 보여줄 테이블 위젯
         self.table = QTableWidget()
-        self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["지시서 번호", "거래처", "품목", "수량", "현재 공정 상태"])
+        self.table.setColumnCount(8)
+        self.table.setHorizontalHeaderLabels(["지시서 번호", "거래처", "품목", "목표 수량", "현재 공정 상태", "공정별 누적 완료", "누적 출고", "출고 잔량"])
         # 열 너비를 꽉 차게 비율 조정
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         layout.addWidget(self.table)
 
         widget = QWidget()
@@ -51,7 +54,7 @@ class AdminDashboard(QMainWindow):
             self.table.setItem(row_idx, 3, QTableWidgetItem(str(wo.get('target_qty', ''))))
             
             # 현재 공정 상태 표기 및 색상 하이라이트
-            status_text = wo.get('current_step', '')
+            status_text, summary, shipped, remaining = display_quantities(wo)
             status_item = QTableWidgetItem(status_text)
             
             if status_text == '주입완료':
@@ -59,6 +62,9 @@ class AdminDashboard(QMainWindow):
                 status_item.setForeground(Qt.black)
                 
             self.table.setItem(row_idx, 4, status_item)
+            for column, text in enumerate((summary, shipped, remaining), start=5):
+                self.table.setItem(row_idx, column, QTableWidgetItem(text))
+        self.table.resizeRowsToContents()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
