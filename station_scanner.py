@@ -7,18 +7,19 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt
 from supabase_config import supabase
-from production_quantities import STEPS
+from production_quantities import STEPS, order_steps
 from production_codes import parse_order_code
 
 
 class StationScanner(QMainWindow):
     def __init__(self, initial_step=0):
         super().__init__()
-        self.setWindowTitle("에스앤더블류 - 현장 수량 스캐너 (6공정)")
+        self.setWindowTitle("에스앤더블류 - 현장 수량 스캐너")
         self.setGeometry(200, 200, 680, 520)
         self.order = None
         self.pending = None
         self.busy = False
+        self.stage_defs = order_steps(None)
         layout = QVBoxLayout()
         self.station_combo = QComboBox()
         self.station_combo.setFont(QFont("Arial", 16))
@@ -62,15 +63,16 @@ class StationScanner(QMainWindow):
 
     def show_order(self):
         counts = self.order.get("process_quantities") or {}
+        stages = order_steps(self.order)
         step = self.station_combo.currentIndex()
         target = int(self.order["target_qty"])
-        done = int(counts.get(STEPS[step], 0))
-        previous = target if step == 0 else int(counts.get(STEPS[step - 1], 0))
+        done = int(counts.get(stages[step]["key"], 0))
+        previous = target if step == 0 else int(counts.get(stages[step - 1]["key"], 0))
         available = max(0, previous - done)
-        shipped = int(counts.get("출고", 0))
+        shipped = int(counts.get(stages[-1]["key"], 0))
         self.info_label.setText(
             f"[{self.order['wo_id']}] 목표 {target}개\n"
-            f"{STEPS[step]} 누적 {done}개 / 이번 처리 가능 {available}개\n"
+            f"{stages[step]['name']} 누적 {done}개 / 이번 처리 가능 {available}개\n"
             f"누적 출고 {shipped}개 / 출고 잔량 {max(0, target-shipped)}개"
         )
         self.info_label.setStyleSheet("color: #24523f;")
@@ -83,6 +85,8 @@ class StationScanner(QMainWindow):
     def process_scan(self):
         if self.busy or self.pending:
             return
+        previous_steps = self.stage_defs
+        previous_key = previous_steps[self.station_combo.currentIndex()]["key"]
         self.order = None
         self.quantity_input.setRange(0, 0)
         self.save_button.setEnabled(False)
@@ -97,6 +101,14 @@ class StationScanner(QMainWindow):
             if order.get("quantity_confirmed") is not True:
                 raise ValueError("웹 현장 스캔에서 기존 공정별 누적 수량을 먼저 확인하세요. DB 수량 관리 설정도 필요합니다.")
             self.order = order
+            stages = order_steps(order)
+            self.stage_defs = stages
+            chosen = next((i for i, item in enumerate(stages) if item["key"] == previous_key), 0)
+            self.station_combo.blockSignals(True)
+            self.station_combo.clear()
+            self.station_combo.addItems([f"[{i+1}공정] {item['name']} 완료" for i, item in enumerate(stages)])
+            self.station_combo.setCurrentIndex(chosen)
+            self.station_combo.blockSignals(False)
             self.scan_input.clear()
             self.show_order()
         except Exception as error:

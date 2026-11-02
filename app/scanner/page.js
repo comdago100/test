@@ -4,7 +4,7 @@ import Link from "next/link";
 import AppNav from "../AppNav";
 import { ArrowLeft, Camera, CheckCircle2, Factory, Keyboard, ScanLine, XCircle } from "lucide-react";
 import { supabase } from "../../lib/supabase";
-import { getProgress, steps, validateOpening, validateQuantity } from "../../lib/workflow";
+import { getProgress, getOrderSteps, steps as legacySteps, validateOpening, validateQuantity } from "../../lib/workflow";
 import { parseOrderCode } from "../../lib/order-code";
 
 function message(error) {
@@ -20,7 +20,7 @@ export default function Scanner() {
   const [order, setOrder] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyError, setHistoryError] = useState("");
-  const [opening, setOpening] = useState(steps.map(() => ""));
+  const [opening, setOpening] = useState(legacySteps.map(() => ""));
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
   const [camera, setCamera] = useState(false);
@@ -32,6 +32,7 @@ export default function Scanner() {
   const pendingRef = useRef(null);
   const mountedRef = useRef(true);
   const initialLookupRef = useRef(false);
+  const steps = getOrderSteps(order);
   const progress = order ? getProgress(order) : null;
   const locked = busy || Boolean(pending);
 
@@ -100,12 +101,13 @@ export default function Scanner() {
     let id;
     try { id = parseOrderCode(raw); }
     catch (error) {
-      setOrder(null); setHistory([]); setQuantity(""); setNote("");
+      setOrder(null); setSelected(0); setHistory([]); setQuantity(""); setNote("");
       setResult({ ok: false, title: "작업지시 코드를 확인해 주세요", detail: error.message });
       return;
     }
     if (!id) return;
-    busyRef.current = true; setBusy(true); setResult(null); setOrder(null); setHistory([]); setHistoryError("");
+    const previousKey = steps[selected]?.key;
+    busyRef.current = true; setBusy(true); setResult(null); setOrder(null); setSelected(0); setHistory([]); setHistoryError("");
     setQuantity(""); setNote(""); setOpening(steps.map(() => ""));
     try {
       if (!supabase) throw new Error("Supabase 연결 설정이 필요합니다.");
@@ -113,6 +115,9 @@ export default function Scanner() {
       if (error) throw error;
       if (!data) throw new Error("일치하는 작업지시가 없습니다.");
       if (data.quantity_confirmed == null) throw new Error("수량 관리 DB 설정이 필요합니다. partial_production.sql을 적용해 주세요.");
+      const nextSteps = getOrderSteps(data);
+      setSelected(Math.max(0, nextSteps.findIndex(step => step.key === previousKey)));
+      setOpening(nextSteps.map(() => ""));
       setOrder(data); setValue("");
       await loadHistory(id);
       quantityRef.current?.focus();
@@ -128,6 +133,7 @@ export default function Scanner() {
     try {
       const { data, error } = await supabase.rpc(request.rpc, request.args);
       if (error) throw error;
+      setSelected(old => Math.min(old, getOrderSteps(data).length - 1));
       setOrder(data); keepPending(null); setQuantity(""); setNote("");
       setResult({ ok: true, title: request.title, detail: `${data.wo_id} · 누적 출고 ${getProgress(data).shipped.toLocaleString()}개 / 잔량 ${getProgress(data).remaining.toLocaleString()}개` });
       await loadHistory(data.wo_id);
@@ -161,10 +167,10 @@ export default function Scanner() {
   function initialize(event) {
     event.preventDefault();
     if (locked || !order) return;
-    const error = validateOpening(opening, order.target_qty);
+    const error = validateOpening(opening, order.target_qty, steps);
     if (error) return setResult({ ok: false, title: "누적 수량을 확인해 주세요", detail: error });
     save({ rpc: "initialize_production_quantities", args: { p_wo_id: order.wo_id,
-      p_quantities: Object.fromEntries(steps.map((step, i) => [step.name, Number(opening[i])])),
+      p_quantities: Object.fromEntries(steps.map((step, i) => [step.key, Number(opening[i])])),
       p_request_id: crypto.randomUUID() }, title: "기존 작업의 누적 수량이 등록되었습니다" });
   }
   function reverse(event) {
@@ -201,7 +207,7 @@ export default function Scanner() {
       <div className="eyebrow"><span className="orange-dot"/> SHOP FLOOR</div>
       <h1>현장 공정 스캔</h1><p className="scanner-desc">작업지시를 스캔하고 이번에 처리한 수량만 기록하세요. 같은 지시서로 여러 번 나눠 작업할 수 있습니다.</p>
       <div className="scanner-panel">
-        <div className="panel-title"><div><span className="step-number">01</span><div><h2>공정 선택</h2><p>이번에 완료한 공정을 선택해 주세요.</p></div></div><span className="selected-label">{steps[selected].place}</span></div>
+        <div className="panel-title"><div><span className="step-number">01</span><div><h2>공정 선택</h2><p>작업지시 조회 후 해당 라우팅의 공정을 선택하세요.</p></div></div><span className="selected-label">{steps[selected].place}</span></div>
         <div className="station-grid">{steps.map((step, i) => <button type="button" key={step.name} disabled={locked || camera} className={selected === i ? "station selected" : "station"} onClick={() => {setSelected(i); setQuantity(""); setNote(""); setResult(null);}}><span className="station-num">0{i+1}</span><strong>{step.name}</strong><small>{step.place}</small></button>)}</div>
         <div className="panel-divider"/>
         <div className="panel-title"><div><span className="step-number">02</span><div><h2>작업지시 조회</h2><p>스캔하면 작업 내역이 표시됩니다.</p></div></div></div>
@@ -211,7 +217,7 @@ export default function Scanner() {
         <div className="manual-label"><Keyboard size={16}/> 바코드 리더기 또는 직접 입력</div>
         <form className="scan-form" onSubmit={e => {e.preventDefault(); scan(value);}}><input ref={inputRef} value={value} disabled={locked || camera} onChange={e=>setValue(e.target.value)} placeholder="작업지시 번호를 입력하세요" autoComplete="off" aria-label="작업지시 번호"/><button className="primary-btn" disabled={locked || camera || !value.trim()}>{busy ? "처리 중" : "작업 조회"}</button></form>
         {order && <section className="scan-order">
-          <div className="section-row"><div><h2>{order.wo_id}</h2><p>{order.item_code} · 목표 {progress.target.toLocaleString()}개</p></div><span className="selected-label">{progress.needsOpening ? "기존 수량 확인 필요" : order.current_step}</span></div>
+          <div className="section-row"><div><h2>{order.wo_id}</h2><p>{order.routing_name || "기존 6공정"} · {order.item_code} · 목표 {progress.target.toLocaleString()}개</p></div><span className="selected-label">{progress.needsOpening ? "기존 수량 확인 필요" : order.current_step}</span></div>
           {progress.needsOpening ? <form onSubmit={initialize}>
             <div className="alert">이전 기록은 상태만 있어 실제 수량을 알 수 없습니다. 각 공정을 지금까지 완료한 누적 수량을 입력하세요. 아직 처리하지 않은 공정은 0개로 입력합니다.</div>
             <div className="form-grid">{steps.map((step, i) => <label key={step.name}>{step.name} 누적 완료 (개)<input type="number" min="0" max={i === 0 ? progress.target : Number(opening[i-1]) || 0} step="1" required disabled={locked} value={opening[i]} onChange={e=>setOpening(old=>old.map((x,j)=>j===i?e.target.value:x))}/></label>)}</div>
@@ -221,7 +227,7 @@ export default function Scanner() {
             <div className="stage-quantities">{steps.map((step,i)=><div key={step.name}><span>{step.name} 완료</span><strong>{progress.completed[i].toLocaleString()}<small> / {progress.target.toLocaleString()}</small></strong></div>)}</div>
             <div className="panel-divider"/>
             <div className="panel-title"><div><span className="step-number">03</span><div><h2>{steps[selected].name} 수량 기록</h2><p>이번 처리 수량이 기존 실적에 추가됩니다.</p></div></div></div>
-            <p className="available-quantity">현재 처리 가능 <strong>{progress.available[selected].toLocaleString()}개</strong> · {selected === 0 ? "목표 수량 중 조형하지 않은 수량" : `${steps[selected-1].name} 완료 수량 중 ${steps[selected].name} 미처리 수량`}</p>
+            <p className="available-quantity">현재 처리 가능 <strong>{progress.available[selected].toLocaleString()}개</strong> · {selected === 0 ? `목표 수량 중 ${steps[selected].name} 미처리 수량` : `${steps[selected-1].name} 완료 수량 중 ${steps[selected].name} 미처리 수량`}</p>
             <form onSubmit={record}>
               <label className="full-label">이번 처리 수량 (개)<input ref={quantityRef} type="number" min="1" max={progress.available[selected]} step="1" required disabled={locked || camera || progress.available[selected] === 0} value={quantity} onChange={e=>setQuantity(e.target.value)} placeholder="실제로 처리한 수량을 입력하세요"/></label>
               <label className="full-label">메모 (선택)<input value={note} disabled={locked || camera} maxLength={500} onChange={e=>setNote(e.target.value)} placeholder="출고처, 생산 회차, 특이사항 등"/></label>

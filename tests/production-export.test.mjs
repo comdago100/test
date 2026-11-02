@@ -44,6 +44,21 @@ test("manufacturing report contains quantities, signed shipment history and mate
   assert.equal(sheets[5].rows.length,1);
 });
 
+test("mixed routes keep Excel quantity columns aligned and use each shipment stage",()=>{
+  const purchased={...known,wo_id:"TRADE",routing_name:"매입",routing_steps:[
+    {key:"in",name:"매입 입고",role:"production"},{key:"out",name:"납품",role:"shipment"}],
+    process_quantities:{in:48,out:17}};
+  const sheets=buildProductionSheets({...source,orders:[known,purchased],events:[
+    event("legacy-shipping",5,7),{...event("trade-shipping",1,17),wo_id:"TRADE"}]},options);
+  const rows=records(sheets[1]);
+  assert.equal(rows[0]["조형 누적 완료(개)"],67);
+  assert.equal(rows[0]["매입 입고 누적 완료(개)"],null);
+  assert.equal(rows[1]["매입 입고 누적 완료(개)"],48);
+  assert.equal(rows[1]["조형 누적 완료(개)"],null);
+  assert.equal(rows[1]["납품 누적 완료(개)"],17);
+  assert.deepEqual(records(sheets[4]).map(r=>r["공정"]),["출고","납품"]);
+});
+
 test("history dates use inclusive Korean calendar days without changing cumulative quantities", () => {
   assert.deepEqual(historyBounds("2026-11-02","2026-11-02"),{
     from:"2026-11-01T15:00:00.000Z",until:"2026-11-02T15:00:00.000Z"});
@@ -86,7 +101,7 @@ test("downloaded XLSX preserves leading zeros, literal formulas, Korean names, n
 });
 
 test("master lists include contact information, numeric item weight and material units", () => {
-  assert.deepEqual(buildMasterSheets("client",[{client_code:"001",client_name:"회사",contact_info:"010-1234-5678"}])[0].rows[0],
+  assert.deepEqual(buildMasterSheets("client",[{client_code:"001",client_name:"회사",contact_info:"010-1234-5678"}])[0].rows[0].slice(0,3),
     ["001","회사","010-1234-5678"]);
   assert.equal(buildMasterSheets("item",[{item_code:"001",item_name:"품목",unit_weight:"1.25"}])[0].rows[0][2],1.25);
   assert.equal(buildMasterSheets("material",[{raw_code:"001",raw_name:"자재",unit:"kg"}])[0].rows[0][2],"kg");

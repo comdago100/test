@@ -8,7 +8,7 @@ import OrderManager from "./OrderManager";
 import OrderPrint from "./OrderPrint";
 import ProductionExport from "./ProductionExport";
 import { isOverdue } from "../lib/order-utils";
-import { dateText, getProgress, matchesStage, steps } from "../lib/workflow";
+import { dateText, getProgress, matchesStage, getOrderSteps } from "../lib/workflow";
 
 async function getAll(table) {
   let rows = [], start = 0;
@@ -57,7 +57,7 @@ export default function Dashboard({ manage = false }) {
     return result;
   }, [usage]);
   const filtered = orders.filter(o => {
-    const text = [o.wo_id, o.client_code, clientNames[o.client_code], o.item_code, itemNames[o.item_code]].join(" ").toLowerCase();
+    const text = [o.wo_id, o.client_code, clientNames[o.client_code], o.item_code, itemNames[o.item_code], o.routing_name].join(" ").toLowerCase();
     return text.includes(query.toLowerCase().trim()) && matchesStage(o, filter);
   });
   const complete = orders.filter(o => getProgress(o).complete).length;
@@ -82,7 +82,7 @@ export default function Dashboard({ manage = false }) {
       </section>
       <section className="board">
         <div className="board-heading"><div><span className="section-kicker">WORK ORDERS</span><h2>작업지시 현황 <span>{filtered.length}</span></h2><p>공정별 수량과 출고 잔량을 확인합니다. 공정 필터는 해당 공정을 처리할 수 있는 작업을 표시합니다.</p></div><div className="board-actions"><div className="search"><Search size={18}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="지시번호, 거래처, 품목 검색" aria-label="작업지시 검색"/></div><button type="button" className="secondary-btn export-btn" disabled={loading || Boolean(error) || !orders.length} onClick={() => setExportData({orders, currentOrders:filtered, clients, items, materials, usage, updated, query, filter})}><Download size={16}/> 엑셀 자료받기</button>{manage && <button className="primary-btn" onClick={() => setEditor({mode:"create", order:null, usage:[]})}><Plus size={17}/> 작업지시 등록</button>}</div></div>
-        <div className="filters">{["전체", "대기", ...steps.map(x=>x.name), "출고 완료", "수량 확인"].map(f => <button key={f} className={filter === f ? "filter active" : "filter"} onClick={() => setFilter(f)}>{f}</button>)}</div>
+        <div className="filters">{["전체", "대기", ...new Set(orders.flatMap(o=>getOrderSteps(o).map(s=>s.name))), "출고 완료", "수량 확인"].map(f => <button key={f} className={filter === f ? "filter active" : "filter"} onClick={() => setFilter(f)}>{f}</button>)}</div>
         <div className="table-head"><span>작업지시 / 거래처</span><span>생산 품목</span><span>공정 진행</span><span>목표 수량</span><span>발행일</span></div>
         {loading ? <div className="empty">작업지시를 불러오는 중입니다.</div> : !filtered.length ? <div className="empty"><Boxes size={26}/><strong>표시할 작업지시가 없습니다</strong><span>검색 조건이나 연결 설정을 확인해 주세요.</span></div> : filtered.map(o => {
           const p = getProgress(o);
@@ -90,12 +90,12 @@ export default function Dashboard({ manage = false }) {
             <div className="order-grid">
               <div className="order-id"><strong>{o.wo_id}</strong>{isOverdue(o) && <span className="overdue-badge">납기 지연</span>}<span>{clientNames[o.client_code] || o.client_code || "거래처 미등록"}</span></div>
               <div className="item-name"><strong>{itemNames[o.item_code] || o.item_code || "품목 미등록"}</strong><span>{o.item_code}</span></div>
-              <div className="progress-cell"><div className="progress-track">{steps.map((s, i) => <div key={s.name} className="progress-segment" title={`${s.name} ${p.completed[i]} / ${p.target}개`}><div className="progress-fill" style={{width: `${p.target > 0 ? Math.min(100, p.completed[i] / p.target * 100) : 0}%`}}/></div>)}</div><span>{p.needsOpening ? "기존 수량 확인 필요" : o.current_step || "발행대기"}</span></div>
+              <div className="progress-cell"><div className="progress-track">{p.steps.map((s, i) => <div key={s.name} className="progress-segment" title={`${s.name} ${p.completed[i]} / ${p.target}개`}><div className="progress-fill" style={{width: `${p.target > 0 ? Math.min(100, p.completed[i] / p.target * 100) : 0}%`}}/></div>)}</div><span>{p.needsOpening ? "기존 수량 확인 필요" : o.current_step || "발행대기"}</span></div>
               <div className="quantity"><span className="mobile-label">목표 수량 </span>{Number(o.target_qty || 0).toLocaleString()} <small>개</small></div>
               <div className="date"><span className="mobile-label">발행 </span>{dateText(o.created_at)}</div>
             </div>
-            {p.needsOpening ? <p className="quantity-notice">기존 작업은 현장 스캔에서 공정별 누적 수량을 먼저 확인해 주세요.</p> : <><div className="stage-quantities compact">{steps.map((step, i)=><div key={step.name}><span>{step.name} 완료</span><strong>{p.completed[i].toLocaleString()}<small>개</small></strong></div>)}</div><div className="shipment-summary compact"><span>누적 출고 <strong>{p.shipped.toLocaleString()}개</strong></span><span>출고 잔량 <strong>{p.remaining.toLocaleString()}개</strong></span></div></>}
-            <div className="order-details">{o.start_date && <span>작업 시작<strong>{dateText(o.start_date)}</strong></span>}{o.due_date && <span>납기<strong>{dateText(o.due_date)}</strong></span>}{o.actual_qty != null && <span>실제 생산<strong>{Number(o.actual_qty).toLocaleString()} 개</strong></span>}{o.unit_weight_kg != null && <span>단중<strong>{Number(o.unit_weight_kg).toLocaleString()} kg</strong></span>}{o.heat_no && <span>용해 번호<strong>{o.heat_no}</strong></span>}{o.casting_material && <span>재질<strong>{o.casting_material}</strong></span>}{manage && <button className="edit-btn" onClick={() => setEditor({mode:"edit",order:{...o},usage:(usageByOrder[o.wo_id] || []).map(x=>({...x}))})}>수정 / 삭제</button>}{manage && <button className="edit-btn" onClick={() => setPrintOrder(o)}>지시서 / QR 인쇄</button>}</div><div className="material-line"><Boxes size={14}/><span>자재 투입</span>{usageByOrder[o.wo_id]?.length ? usageByOrder[o.wo_id].map((u, i) => <span className="material-chip" key={u.usage_id || i}>{materialNames[u.raw_code] || u.raw_code} {Number(u.input_qty).toLocaleString()} kg</span>) : <span className="muted">기록 없음</span>}</div>
+            {p.needsOpening ? <p className="quantity-notice">기존 작업은 현장 스캔에서 공정별 누적 수량을 먼저 확인해 주세요.</p> : <><div className="stage-quantities compact">{p.steps.map((step, i)=><div key={step.name}><span>{step.name} 완료</span><strong>{p.completed[i].toLocaleString()}<small>개</small></strong></div>)}</div><div className="shipment-summary compact"><span>누적 출고 <strong>{p.shipped.toLocaleString()}개</strong></span><span>출고 잔량 <strong>{p.remaining.toLocaleString()}개</strong></span></div></>}
+            <div className="order-details"><span>라우팅<strong>{o.routing_name || "기존 6공정"}</strong></span>{o.start_date && <span>작업 시작<strong>{dateText(o.start_date)}</strong></span>}{o.due_date && <span>납기<strong>{dateText(o.due_date)}</strong></span>}{o.actual_qty != null && <span>실제 생산<strong>{Number(o.actual_qty).toLocaleString()} 개</strong></span>}{o.unit_weight_kg != null && <span>단중<strong>{Number(o.unit_weight_kg).toLocaleString()} kg</strong></span>}{o.heat_no && <span>용해 번호<strong>{o.heat_no}</strong></span>}{o.casting_material && <span>재질<strong>{o.casting_material}</strong></span>}{manage && <button className="edit-btn" onClick={() => setEditor({mode:"edit",order:{...o},usage:(usageByOrder[o.wo_id] || []).map(x=>({...x}))})}>수정 / 삭제</button>}{manage && <button className="edit-btn" onClick={() => setPrintOrder(o)}>지시서 / QR 인쇄</button>}</div><div className="material-line"><Boxes size={14}/><span>자재 투입</span>{usageByOrder[o.wo_id]?.length ? usageByOrder[o.wo_id].map((u, i) => <span className="material-chip" key={u.usage_id || i}>{materialNames[u.raw_code] || u.raw_code} {Number(u.input_qty).toLocaleString()} kg</span>) : <span className="muted">기록 없음</span>}</div>
             {o.notes && <p className="order-note">메모 · {o.notes}</p>}
           </article>;
         })}
@@ -103,7 +103,7 @@ export default function Dashboard({ manage = false }) {
       <footer>FOUNDRY OPERATIONS <span>현장과 사무실을 하나로</span></footer>
     </div>
     {editor && <OrderManager mode={editor.mode} order={editor.order} usage={editor.usage} clients={clients} items={items} materials={materials} close={() => setEditor(null)} onSaved={refresh}/>}
-    {printOrder && <OrderPrint order={printOrder} clientName={clientNames[printOrder.client_code]} itemName={itemNames[printOrder.item_code]} usage={usageByOrder[printOrder.wo_id] || []} materialNames={materialNames} close={() => setPrintOrder(null)}/>}
+    {printOrder && <OrderPrint order={printOrder} client={clients.find(client=>client.client_code===printOrder.client_code)} clientName={clientNames[printOrder.client_code]} itemName={itemNames[printOrder.item_code]} usage={usageByOrder[printOrder.wo_id] || []} materialNames={materialNames} close={() => setPrintOrder(null)}/>}
     {exportData && <ProductionExport data={exportData} close={() => setExportData(null)}/>}
   </main>;
 }

@@ -70,6 +70,24 @@ class QuantityScannerTest(unittest.TestCase):
         self.assertEqual(self.window.quantity_input.maximum(), 0)
         self.assertFalse(self.window.save_button.isEnabled())
 
+    def test_routed_scanner_uses_snapshot_keys_and_recovers_after_lookup_error(self):
+        self.order.update(routing_steps=[
+            {"key": f"p{i}", "name": f"공정{i}"} for i in range(8)
+        ], process_quantities={f"p{i}": 30 if i < 7 else 11 for i in range(8)})
+        self.lookup()
+        self.assertEqual(self.window.station_combo.count(), 8)
+        self.window.station_combo.setCurrentIndex(7)
+        self.assertEqual(self.window.quantity_input.maximum(), 19)
+        self.assertIn("누적 출고 11개", self.window.info_label.text())
+        response = self.backend.table.return_value.select.return_value.eq.return_value.execute
+        response.return_value = types.SimpleNamespace(data=[])
+        self.lookup()
+        self.assertIsNone(self.window.order)
+        response.return_value = types.SimpleNamespace(data=[self.order])
+        self.lookup()
+        self.assertEqual(self.window.station_combo.currentIndex(), 7)
+        self.assertEqual(self.window.quantity_input.maximum(), 19)
+
     def test_url_qr_looks_up_same_order_without_recording_progress(self):
         self.window.scan_input.setText("https://test-ict.pages.dev/scanner/?wo_id=WO-PARTIAL")
         self.window.process_scan()
