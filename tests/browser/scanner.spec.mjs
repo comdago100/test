@@ -19,6 +19,7 @@ async function backend(page, initial = order()) {
       if (path.endsWith("/work_orders")) {
         const filter = new URL(request.url()).searchParams.get("wo_id");
         if (filter) state.lookups.push(filter);
+        if (state.lookupGate) await state.lookupGate;
         return fulfill(filter ? state.order : [state.order]);
       }
       if (path.endsWith("/production_events")) return fulfill([...state.events].reverse());
@@ -59,6 +60,49 @@ async function lookup(page) {
   await expect(page.getByRole("heading", { name: "WO-PARTIAL", exact: true })).toBeVisible();
 }
 function station(page, name) { return page.locator(".station").filter({ has: page.getByText(name, { exact: true }) }); }
+
+test("lookup is first and processes appear only after a successful lookup", async ({ page }, testInfo) => {
+  const state = await backend(page);
+  await page.goto("/scanner/");
+  const code = page.getByLabel("작업지시 번호", { exact: true });
+  await expect(code).toBeFocused();
+  await expect(page.locator(".scanner-panel .panel-title h2")).toHaveText(["작업지시 조회"]);
+  await expect(page.locator(".station")).toHaveCount(0);
+  await expect(page.getByLabel("이번 처리 수량 (개)", { exact: true })).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath("lookup-first.png"), fullPage: true });
+  let release;
+  state.lookupGate = new Promise(resolve => { release = resolve; });
+  await code.fill("WO-PARTIAL"); await code.press("Enter");
+  await expect.poll(() => state.lookups.length).toBe(1);
+  await expect(page.getByRole("heading", { name: "공정 선택", exact: true })).toHaveCount(0);
+  await expect(page.locator(".station")).toHaveCount(0);
+  release();
+  await expect(page.locator(".station")).toHaveCount(6);
+  await expect(page.locator(".scanner-panel .panel-title h2")).toHaveText(["작업지시 조회", "공정 선택", "조형 수량 기록"]);
+  await expect(station(page, "조형")).toBeFocused();
+  await station(page, "조형").click();
+  await expect(page.getByLabel("이번 처리 수량 (개)", { exact: true })).toBeFocused();
+  expect(state.calls).toHaveLength(0);
+});
+
+test("a new lookup hides the previous processes while loading and after failure", async ({ page }) => {
+  const state = await backend(page);
+  await lookup(page);
+  await station(page, "출고").click();
+  let release;
+  state.lookupGate = new Promise(resolve => { release = resolve; });
+  state.order = null;
+  const code = page.getByLabel("작업지시 번호", { exact: true });
+  await code.fill("UNKNOWN"); await code.press("Enter");
+  await expect.poll(() => state.lookups.length).toBe(2);
+  await expect(page.locator(".station")).toHaveCount(0);
+  await expect(page.getByLabel("이번 처리 수량 (개)", { exact: true })).toHaveCount(0);
+  release();
+  await expect(page.locator(".scan-result.failure")).toContainText("일치하는 작업지시가 없습니다");
+  await expect(page.locator(".station")).toHaveCount(0);
+  await expect(code).toBeFocused();
+  expect(state.calls).toHaveLength(0);
+});
 
 test("scanning only looks up the order; each submission adds the entered quantity", async ({ page }) => {
   const state = await backend(page);

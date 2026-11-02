@@ -28,6 +28,8 @@ export default function Scanner() {
   const scannerRef = useRef(null);
   const inputRef = useRef(null);
   const quantityRef = useRef(null);
+  const stationRef = useRef(null);
+  const focusProcessRef = useRef(false);
   const busyRef = useRef(false);
   const pendingRef = useRef(null);
   const mountedRef = useRef(true);
@@ -38,7 +40,10 @@ export default function Scanner() {
 
   useEffect(() => {
     if (busy || pending || camera) return;
-    if (order?.quantity_confirmed) quantityRef.current?.focus();
+    if (order?.quantity_confirmed) {
+      if (focusProcessRef.current) stationRef.current?.focus();
+      else quantityRef.current?.focus();
+    }
     else if (!order) inputRef.current?.focus();
   }, [busy, pending, camera, order, selected]);
 
@@ -118,9 +123,9 @@ export default function Scanner() {
       const nextSteps = getOrderSteps(data);
       setSelected(Math.max(0, nextSteps.findIndex(step => step.key === previousKey)));
       setOpening(nextSteps.map(() => ""));
+      focusProcessRef.current = true;
       setOrder(data); setValue("");
       await loadHistory(id);
-      quantityRef.current?.focus();
     } catch (error) { setResult({ ok: false, title: "작업지시를 불러오지 못했습니다", detail: message(error) }); }
     finally { setBusy(false); busyRef.current = false; }
   }
@@ -133,6 +138,7 @@ export default function Scanner() {
     try {
       const { data, error } = await supabase.rpc(request.rpc, request.args);
       if (error) throw error;
+      focusProcessRef.current = false;
       setSelected(old => Math.min(old, getOrderSteps(data).length - 1));
       setOrder(data); keepPending(null); setQuantity(""); setNote("");
       setResult({ ok: true, title: request.title, detail: `${data.wo_id} · 누적 출고 ${getProgress(data).shipped.toLocaleString()}개 / 잔량 ${getProgress(data).remaining.toLocaleString()}개` });
@@ -205,19 +211,18 @@ export default function Scanner() {
     <div className="scanner-content">
       <Link href="/" className="back-link"><ArrowLeft size={16}/> 생산 현황으로</Link>
       <div className="eyebrow"><span className="orange-dot"/> SHOP FLOOR</div>
-      <h1>현장 공정 스캔</h1><p className="scanner-desc">작업지시를 스캔하고 이번에 처리한 수량만 기록하세요. 같은 지시서로 여러 번 나눠 작업할 수 있습니다.</p>
+      <h1>현장 공정 스캔</h1><p className="scanner-desc">작업지시를 먼저 조회한 뒤 공정을 선택하고, 이번에 처리한 수량을 기록하세요. 같은 지시서로 여러 번 나눠 작업할 수 있습니다.</p>
       <div className="scanner-panel">
-        <div className="panel-title"><div><span className="step-number">01</span><div><h2>공정 선택</h2><p>작업지시 조회 후 해당 라우팅의 공정을 선택하세요.</p></div></div><span className="selected-label">{steps[selected].place}</span></div>
-        <div className="station-grid">{steps.map((step, i) => <button type="button" key={step.name} disabled={locked || camera} className={selected === i ? "station selected" : "station"} onClick={() => {setSelected(i); setQuantity(""); setNote(""); setResult(null);}}><span className="station-num">0{i+1}</span><strong>{step.name}</strong><small>{step.place}</small></button>)}</div>
-        <div className="panel-divider"/>
-        <div className="panel-title"><div><span className="step-number">02</span><div><h2>작업지시 조회</h2><p>스캔하면 작업 내역이 표시됩니다.</p></div></div></div>
-        <div className="scan-area"><div className="scan-icon"><ScanLine size={32}/></div><strong>{steps[selected].place} · {steps[selected].label}</strong><p>작업지시서의 코드를 스캔해 주세요</p>
-          {camera ? <><div id="camera-reader"/><button type="button" className="secondary-btn" onClick={stopCamera}>카메라 닫기</button></> : <button className="primary-btn camera-btn" disabled={locked} type="button" onClick={startCamera}><Camera size={18}/> 카메라로 스캔</button>}
-        </div>
+        <div className="panel-title"><div><span className="step-number">01</span><div><h2>작업지시 조회</h2><p>지시번호를 입력하거나 코드를 스캔하세요.</p></div></div></div>
         <div className="manual-label"><Keyboard size={16}/> 바코드 리더기 또는 직접 입력</div>
         <form className="scan-form" onSubmit={e => {e.preventDefault(); scan(value);}}><input ref={inputRef} value={value} disabled={locked || camera} onChange={e=>setValue(e.target.value)} placeholder="작업지시 번호를 입력하세요" autoComplete="off" aria-label="작업지시 번호"/><button className="primary-btn" disabled={locked || camera || !value.trim()}>{busy ? "처리 중" : "작업 조회"}</button></form>
+        <div className="scan-area"><div className="scan-icon"><ScanLine size={32}/></div><strong>작업지시서 QR / 바코드</strong><p>휴대폰에서는 카메라로 조회할 수 있습니다.</p>
+          {camera ? <><div id="camera-reader"/><button type="button" className="secondary-btn" onClick={stopCamera}>카메라 닫기</button></> : <button className="primary-btn camera-btn" disabled={locked} type="button" onClick={startCamera}><Camera size={18}/> 카메라로 스캔</button>}
+        </div>
         {order && <section className="scan-order">
           <div className="section-row"><div><h2>{order.wo_id}</h2><p>{order.routing_name || "기존 6공정"} · {order.item_code} · 목표 {progress.target.toLocaleString()}개</p></div><span className="selected-label">{progress.needsOpening ? "기존 수량 확인 필요" : order.current_step}</span></div>
+          <div className="panel-title"><div><span className="step-number">02</span><div><h2>공정 선택</h2><p>조회한 작업의 라우팅에서 이번에 완료한 공정을 선택하세요.</p></div></div><span className="selected-label">{steps[selected].place}</span></div>
+          <div className="station-grid">{steps.map((step, i) => <button type="button" key={step.key} ref={selected === i ? stationRef : null} disabled={locked || camera} className={selected === i ? "station selected" : "station"} onClick={() => {focusProcessRef.current = false; setSelected(i); setQuantity(""); setNote(""); setResult(null); quantityRef.current?.focus();}}><span className="station-num">{String(i+1).padStart(2,"0")}</span><strong>{step.name}</strong><small>{step.place}</small></button>)}</div>
           {progress.needsOpening ? <form onSubmit={initialize}>
             <div className="alert">이전 기록은 상태만 있어 실제 수량을 알 수 없습니다. 각 공정을 지금까지 완료한 누적 수량을 입력하세요. 아직 처리하지 않은 공정은 0개로 입력합니다.</div>
             <div className="form-grid">{steps.map((step, i) => <label key={step.name}>{step.name} 누적 완료 (개)<input type="number" min="0" max={i === 0 ? progress.target : Number(opening[i-1]) || 0} step="1" required disabled={locked} value={opening[i]} onChange={e=>setOpening(old=>old.map((x,j)=>j===i?e.target.value:x))}/></label>)}</div>
