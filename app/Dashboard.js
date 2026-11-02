@@ -2,10 +2,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AppNav from "./AppNav";
-import { Activity, ArrowRight, Boxes, CheckCircle2, Clock3, Factory, Layers3, RefreshCw, ScanLine, Search, Plus } from "lucide-react";
+import { Activity, ArrowRight, Boxes, CheckCircle2, Clock3, Download, Factory, Layers3, RefreshCw, ScanLine, Search, Plus } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import OrderManager from "./OrderManager";
 import OrderPrint from "./OrderPrint";
+import ProductionExport from "./ProductionExport";
 import { isOverdue } from "../lib/order-utils";
 import { dateText, getProgress, matchesStage, steps } from "../lib/workflow";
 
@@ -33,6 +34,7 @@ export default function Dashboard({ manage = false }) {
   const [loading, setLoading] = useState(true);
   const [editor, setEditor] = useState(null);
   const [printOrder, setPrintOrder] = useState(null);
+  const [exportData, setExportData] = useState(null);
 
   const refresh = useCallback(async () => {
     if (!supabase) { setError("Supabase 연결 설정이 필요합니다. 환경 변수를 확인해 주세요."); setLoading(false); return; }
@@ -79,7 +81,7 @@ export default function Dashboard({ manage = false }) {
         {[["전체 작업지시", orders.length, "등록된 작업", <Layers3 key="a"/>], ["진행 중", progress, "공정 진행 중", <Activity key="b"/>], ["작업 대기", waiting, "공정 시작 전", <Clock3 key="c"/>], ["출고 완료", complete, "최종 공정 완료", <CheckCircle2 key="d"/>]].map(([title, count, sub, icon], idx) => <div className="stat" key={title}><div className="stat-top"><span>{title}</span><span className={`stat-icon icon-${idx}`}>{icon}</span></div><div className="stat-number">{count}<small>건</small></div><div className="stat-sub">{sub}</div></div>)}
       </section>
       <section className="board">
-        <div className="board-heading"><div><span className="section-kicker">WORK ORDERS</span><h2>작업지시 현황 <span>{filtered.length}</span></h2><p>공정별 수량과 출고 잔량을 확인합니다. 공정 필터는 해당 공정을 처리할 수 있는 작업을 표시합니다.</p></div><div className="board-actions"><div className="search"><Search size={18}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="지시번호, 거래처, 품목 검색" aria-label="작업지시 검색"/></div>{manage && <button className="primary-btn" onClick={() => setEditor({mode:"create", order:null, usage:[]})}><Plus size={17}/> 작업지시 등록</button>}</div></div>
+        <div className="board-heading"><div><span className="section-kicker">WORK ORDERS</span><h2>작업지시 현황 <span>{filtered.length}</span></h2><p>공정별 수량과 출고 잔량을 확인합니다. 공정 필터는 해당 공정을 처리할 수 있는 작업을 표시합니다.</p></div><div className="board-actions"><div className="search"><Search size={18}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="지시번호, 거래처, 품목 검색" aria-label="작업지시 검색"/></div><button type="button" className="secondary-btn export-btn" disabled={loading || Boolean(error) || !orders.length} onClick={() => setExportData({orders, currentOrders:filtered, clients, items, materials, usage, updated, query, filter})}><Download size={16}/> 엑셀 자료받기</button>{manage && <button className="primary-btn" onClick={() => setEditor({mode:"create", order:null, usage:[]})}><Plus size={17}/> 작업지시 등록</button>}</div></div>
         <div className="filters">{["전체", "대기", ...steps.map(x=>x.name), "출고 완료", "수량 확인"].map(f => <button key={f} className={filter === f ? "filter active" : "filter"} onClick={() => setFilter(f)}>{f}</button>)}</div>
         <div className="table-head"><span>작업지시 / 거래처</span><span>생산 품목</span><span>공정 진행</span><span>목표 수량</span><span>발행일</span></div>
         {loading ? <div className="empty">작업지시를 불러오는 중입니다.</div> : !filtered.length ? <div className="empty"><Boxes size={26}/><strong>표시할 작업지시가 없습니다</strong><span>검색 조건이나 연결 설정을 확인해 주세요.</span></div> : filtered.map(o => {
@@ -102,5 +104,6 @@ export default function Dashboard({ manage = false }) {
     </div>
     {editor && <OrderManager mode={editor.mode} order={editor.order} usage={editor.usage} clients={clients} items={items} materials={materials} close={() => setEditor(null)} onSaved={refresh}/>}
     {printOrder && <OrderPrint order={printOrder} clientName={clientNames[printOrder.client_code]} itemName={itemNames[printOrder.item_code]} usage={usageByOrder[printOrder.wo_id] || []} materialNames={materialNames} close={() => setPrintOrder(null)}/>}
+    {exportData && <ProductionExport data={exportData} close={() => setExportData(null)}/>}
   </main>;
 }

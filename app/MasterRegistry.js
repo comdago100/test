@@ -1,9 +1,11 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Factory, RefreshCw, Search } from "lucide-react";
+import { Download, Factory, RefreshCw, Search } from "lucide-react";
 import AppNav from "./AppNav";
 import { supabase } from "../lib/supabase";
+import { buildMasterSheets, exportFilename } from "../lib/production-export";
+import { downloadWorkbook } from "../lib/excel-download";
 
 const configs = {
   client: { title: "거래처", table: "clients", code: "client_code", name: "client_name", example: "예: C001" },
@@ -23,6 +25,9 @@ export default function MasterRegistry({ kind }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const busyRef = useRef(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
+  const exportBusyRef = useRef(false);
 
   const refresh = useCallback(async () => {
     setLoading(true); setLoadError("");
@@ -30,7 +35,7 @@ export default function MasterRegistry({ kind }) {
       if (!supabase) throw new Error("Supabase 연결 설정이 필요합니다.");
       let all = [];
       for (let start = 0; ; start += 1000) {
-        const { data, error } = await supabase.from(config.table).select(`${config.code},${config.name}`).order(config.code).range(start, start + 999);
+        const { data, error } = await supabase.from(config.table).select("*").order(config.code).range(start, start + 999);
         if (error) throw error;
         all = all.concat(data || []);
         if (!data || data.length < 1000) break;
@@ -62,6 +67,13 @@ export default function MasterRegistry({ kind }) {
     } finally { busyRef.current = false; setBusy(false); }
   }
   const filtered = rows.filter(row => `${row[config.code]} ${row[config.name]}`.toLowerCase().includes(query.trim().toLowerCase()));
+  async function exportRows() {
+    if (exportBusyRef.current || loading || loadError || !filtered.length) return;
+    exportBusyRef.current = true; setExporting(true); setExportError("");
+    try { await downloadWorkbook(buildMasterSheets(kind, filtered), exportFilename(config.title + "목록")); }
+    catch (error) { setExportError(error.message || "엑셀 파일을 만들지 못했습니다."); }
+    finally { exportBusyRef.current = false; setExporting(false); }
+  }
   return <main className="shell">
     <header className="topbar"><Link href="/" className="brand"><span className="brand-icon"><Factory size={20}/></span><span>FOUNDRY<span className="brand-sub"> 공정 관리</span></span></Link><AppNav/></header>
     <div className="content">
@@ -81,8 +93,9 @@ export default function MasterRegistry({ kind }) {
         </form>
       </section>
       <section className="board registry-list" aria-labelledby="registry-list-title">
-        <div className="board-heading"><div><h2 id="registry-list-title">등록된 {config.title} <span>{filtered.length}</span></h2><p>코드와 이름으로 검색할 수 있습니다.</p></div><div className="board-actions"><div className="search"><Search size={18}/><input aria-label={`${config.title} 검색`} value={query} onChange={e => setQuery(e.target.value)} placeholder="코드 또는 이름 검색"/></div><button type="button" className="icon-btn" onClick={refresh} disabled={loading || busy} aria-label="목록 새로고침"><RefreshCw size={18}/></button></div></div>
+        <div className="board-heading"><div><h2 id="registry-list-title">등록된 {config.title} <span>{filtered.length}</span></h2><p>코드와 이름으로 검색할 수 있습니다.</p></div><div className="board-actions"><div className="search"><Search size={18}/><input aria-label={`${config.title} 검색`} value={query} onChange={e => setQuery(e.target.value)} placeholder="코드 또는 이름 검색"/></div><button type="button" className="secondary-btn export-btn" onClick={exportRows} disabled={exporting || loading || Boolean(loadError) || !filtered.length}><Download size={16}/>{exporting ? "준비 중…" : "엑셀 자료받기"}</button><button type="button" className="icon-btn" onClick={refresh} disabled={loading || busy} aria-label="목록 새로고침"><RefreshCw size={18}/></button></div></div>
         {loadError && <div className="alert" role="alert">{loadError}</div>}
+        {exportError && <div className="alert" role="alert">{exportError}</div>}
         {loading ? <div className="empty">목록을 불러오는 중입니다.</div> : loadError ? <div className="empty">목록을 확인할 수 없습니다. 새로고침해 주세요.</div> : filtered.length ? <table className="registry-table"><thead><tr><th scope="col">{config.title} 코드</th><th scope="col">{config.title}명</th></tr></thead><tbody>{filtered.map(row => <tr key={row[config.code]}><td>{row[config.code]}</td><td>{row[config.name]}</td></tr>)}</tbody></table> : <div className="empty">{query.trim() ? "검색 결과가 없습니다." : `등록된 ${config.title} 정보가 없습니다. 위에서 먼저 등록하세요.`}</div>}
       </section>
     </div>
