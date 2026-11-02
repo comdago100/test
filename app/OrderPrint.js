@@ -2,21 +2,24 @@
 import { useEffect, useState } from "react";
 import { Printer, X } from "lucide-react";
 import { dateText, getProgress, steps } from "../lib/workflow";
+import { buildOrderUrl } from "../lib/order-code";
 
 export default function OrderPrint({ order, clientName, itemName, usage, materialNames, close }) {
   const progress = getProgress(order);
   const [qr, setQr] = useState("");
   const [error, setError] = useState("");
+  const scanUrl = buildOrderUrl(order.wo_id);
   useEffect(() => {
     let alive = true;
-    import("qrcode").then(module => (module.default || module).toDataURL(order.wo_id, { width: 280, margin: 2 }))
+    setQr(""); setError("");
+    import("qrcode").then(module => (module.default || module).toDataURL(scanUrl, { width: 360, margin: 4, errorCorrectionLevel: "M" }))
       .then(url => { if (alive) setQr(url); })
       .catch(() => { if (alive) setError("QR 코드를 만들지 못했습니다."); });
     return () => { alive = false; };
-  }, [order.wo_id]);
+  }, [scanUrl]);
   return <div className="print-backdrop" role="dialog" aria-modal="true" aria-labelledby="print-title">
     <section className="print-sheet">
-      <div className="print-tools"><button className="primary-btn" onClick={() => window.print()} disabled={!qr}><Printer size={17}/> 인쇄 / PDF 저장</button><button className="icon-btn" onClick={close} aria-label="인쇄 미리보기 닫기"><X size={18}/></button></div>
+      <div className="print-tools"><button className="primary-btn" onClick={() => window.print()} disabled={!qr}><Printer size={17}/> 인쇄 / PDF 저장</button><a className="secondary-btn" href={scanUrl} target="_blank" rel="noreferrer">현장 화면 열기</a><button className="icon-btn" onClick={close} aria-label="인쇄 미리보기 닫기"><X size={18}/></button></div>
       <h1 id="print-title">작업지시서</h1>
       <div className="print-order-heading"><div><strong>{order.wo_id}</strong><p>발행일 {dateText(order.created_at)}</p></div>{qr ? <img src={qr} width="150" height="150" alt={order.wo_id + " 스캔용 QR 코드"}/> : <p>{error || "QR 생성 중..."}</p>}</div>
       <table className="print-table"><tbody>
@@ -29,7 +32,7 @@ export default function OrderPrint({ order, clientName, itemName, usage, materia
       <h2>공정 확인</h2><div className="print-stages">{steps.map((s,i)=><div key={s.name}><strong>{s.name}</strong><span>{progress.needsOpening ? "기존 수량 확인 필요" : `누적 ${progress.completed[i].toLocaleString()}개 완료`}</span><span>처리일 / 이번 수량 / 확인</span></div>)}</div>
       {!progress.needsOpening && <p className="print-footer">인쇄 시점 · 누적 출고 {progress.shipped.toLocaleString()}개 / 출고 잔량 {progress.remaining.toLocaleString()}개</p>}
       <h2>작업 메모</h2><div className="print-memo">{order.notes || " "}</div>
-      <p className="print-footer">각 공정에서 QR 코드를 스캔한 뒤 이번에 처리한 수량을 기록하세요. 같은 지시서로 나눠 작업할 수 있습니다.</p>
+      <p className="print-footer">휴대폰 카메라로 QR 코드를 찍으면 이 작업지시가 열립니다. 공정을 선택하고 이번에 처리한 수량을 기록하세요.</p>
     </section>
   </div>;
 }

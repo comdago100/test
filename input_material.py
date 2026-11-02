@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt
 
 
 from supabase_config import supabase
+from production_codes import parse_order_code
 
 
 class MeltingWindow(QMainWindow):
@@ -94,7 +95,11 @@ class MeltingWindow(QMainWindow):
                 pass # 이미 등록되어 있으면 무시
 
     def process_scan(self):
-        wo_id = self.scan_input.text().strip()
+        try:
+            wo_id = parse_order_code(self.scan_input.text())
+        except ValueError as error:
+            self.status_label.setText(str(error))
+            return
         if not wo_id: return
 
         # 스캔한 바코드가 진짜 있는 지시서인지 DB 확인
