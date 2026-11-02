@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt
 
 
 from supabase_config import supabase
+from production_codes import parse_order_code
 
 
 class AdminMaterialWindow(QMainWindow):
@@ -75,7 +76,14 @@ class AdminMaterialWindow(QMainWindow):
         self.setCentralWidget(widget)
 
     def search_wo(self):
-        wo_id = self.wo_input.text().strip()
+        self.current_wo_id = None
+        self.mat_group.setEnabled(False)
+        self.btn_save.setEnabled(False)
+        try:
+            wo_id = parse_order_code(self.wo_input.text())
+        except ValueError as error:
+            self.status_label.setText(str(error))
+            return
         if not wo_id: return
 
         response = supabase.table('work_orders').select("*").eq("wo_id", wo_id).execute()

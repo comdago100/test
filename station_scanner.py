@@ -8,6 +8,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt
 from supabase_config import supabase
 from production_quantities import STEPS
+from production_codes import parse_order_code
 
 
 class StationScanner(QMainWindow):
@@ -82,13 +83,13 @@ class StationScanner(QMainWindow):
     def process_scan(self):
         if self.busy or self.pending:
             return
-        wo_id = self.scan_input.text().strip()
-        if not wo_id:
-            return
         self.order = None
         self.quantity_input.setRange(0, 0)
         self.save_button.setEnabled(False)
         try:
+            wo_id = parse_order_code(self.scan_input.text())
+            if not wo_id:
+                return
             response = supabase.table("work_orders").select("*").eq("wo_id", wo_id).execute()
             if not response.data:
                 raise ValueError("일치하는 작업지시가 없습니다.")

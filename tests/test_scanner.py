@@ -70,6 +70,13 @@ class QuantityScannerTest(unittest.TestCase):
         self.assertEqual(self.window.quantity_input.maximum(), 0)
         self.assertFalse(self.window.save_button.isEnabled())
 
+    def test_url_qr_looks_up_same_order_without_recording_progress(self):
+        self.window.scan_input.setText("https://test-ict.pages.dev/scanner/?wo_id=WO-PARTIAL")
+        self.window.process_scan()
+        self.backend.table.return_value.select.return_value.eq.assert_called_with("wo_id", "WO-PARTIAL")
+        self.assertEqual(self.window.order["wo_id"], "WO-PARTIAL")
+        self.backend.rpc.assert_not_called()
+
     def test_old_unconfirmed_order_cannot_record(self):
         self.order["quantity_confirmed"] = False
         self.lookup()

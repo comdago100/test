@@ -5,6 +5,7 @@ import AppNav from "../AppNav";
 import { ArrowLeft, Camera, CheckCircle2, Factory, Keyboard, ScanLine, XCircle } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { getProgress, steps, validateOpening, validateQuantity } from "../../lib/workflow";
+import { parseOrderCode } from "../../lib/order-code";
 
 function message(error) {
   if (["PGRST202", "PGRST204", "42P01", "42703"].includes(error?.code)) return "수량 관리 DB 설정이 필요합니다. partial_production.sql을 적용해 주세요.";
@@ -30,6 +31,7 @@ export default function Scanner() {
   const busyRef = useRef(false);
   const pendingRef = useRef(null);
   const mountedRef = useRef(true);
+  const initialLookupRef = useRef(false);
   const progress = order ? getProgress(order) : null;
   const locked = busy || Boolean(pending);
 
@@ -76,6 +78,15 @@ export default function Scanner() {
     };
   }, []);
 
+  useEffect(() => {
+    if (initialLookupRef.current) return;
+    initialLookupRef.current = true;
+    const id = new URLSearchParams(window.location.search).get("wo_id");
+    if (id === null) return;
+    setValue(id);
+    if (!pendingRef.current) scan(id);
+  }, []);
+
   async function loadHistory(id) {
     try {
       const { data, error } = await supabase.from("production_events").select("*").eq("wo_id", id)
@@ -85,8 +96,15 @@ export default function Scanner() {
     } catch (error) { setHistory([]); setHistoryError(message(error)); }
   }
   async function scan(raw) {
-    const id = raw.trim();
-    if (!id || busyRef.current || pendingRef.current) return;
+    if (busyRef.current || pendingRef.current) return;
+    let id;
+    try { id = parseOrderCode(raw); }
+    catch (error) {
+      setOrder(null); setHistory([]); setQuantity(""); setNote("");
+      setResult({ ok: false, title: "작업지시 코드를 확인해 주세요", detail: error.message });
+      return;
+    }
+    if (!id) return;
     busyRef.current = true; setBusy(true); setResult(null); setOrder(null); setHistory([]); setHistoryError("");
     setQuantity(""); setNote(""); setOpening(steps.map(() => ""));
     try {

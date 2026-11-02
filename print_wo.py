@@ -9,6 +9,7 @@ from PySide6.QtGui import QFont
 
 
 from supabase_config import supabase
+from production_codes import build_order_url
 
 
 class WorkOrderPrinter(QMainWindow):
@@ -105,7 +106,7 @@ class WorkOrderPrinter(QMainWindow):
 
         # 3. 현장 스캔용 QR 코드 생성
         qr_filename = f"{wo_id}.png"
-        qr = qrcode.make(wo_id)
+        qr = qrcode.make(build_order_url(wo_id))
         qr.save(qr_filename)
 
         # 4. 현장 작업자용 A4 인쇄 템플릿 (단중 및 총 중량 강조)
@@ -134,7 +135,7 @@ class WorkOrderPrinter(QMainWindow):
                     <td style="font-weight: bold;">{wo_id}</td>
                     <td rowspan="4" class="qr-cell">
                         <img src="{qr_filename}" width="180"><br><br>
-                        <b>공정 스캔용 바코드</b>
+                        <b>휴대폰으로 작업지시 열기</b>
                     </td>
                 </tr>
                 <tr>
