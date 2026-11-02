@@ -68,3 +68,10 @@ PC 현황판 `admin_dashboard.py`, `live_dashboard.py`에서도 공정별 누적
 `https://<배포ID>.test-ict.pages.dev`는 특정 배포 내용을 보존하는 고정 주소입니다.
 Git push로 과거 고정 주소를 덮어쓸 수 없으므로 최신 화면은 운영 주소를 사용하세요.
 이후 배포의 고정 주소에는 최신 운영 화면으로 이동하는 안내가 표시됩니다.
+## 기초정보 등록 메뉴
+
+거래처 등록: `/clients/`
+품목 등록: `/items/`
+원재료 등록: `/materials/`
+
+상단의 각 메뉴에서 등록·목록 조회·검색을 합니다. 작업지시에서는 등록된 정보를 선택합니다. 기존 create_production_master 함수를 사용하므로 추가 DB 변경은 없습니다.
