@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Printer, X } from "lucide-react";
 import { dateText, getProgress } from "../lib/workflow";
 import { buildOrderUrl } from "../lib/order-code";
+import {productFields} from '../lib/product-details';
 
 export default function OrderPrint({ order, client, clientName, itemName, usage, materialNames, close }) {
   const progress = getProgress(order);
@@ -23,7 +24,8 @@ export default function OrderPrint({ order, client, clientName, itemName, usage,
       <h1 id="print-title">작업지시서</h1>
       <div className="print-order-heading"><div><strong>{order.wo_id}</strong><p>발행일 {dateText(order.created_at)}</p></div>{qr ? <img src={qr} width="150" height="150" alt={order.wo_id + " 스캔용 QR 코드"}/> : <p>{error || "QR 생성 중..."}</p>}</div>
       <table className="print-table"><tbody>
-        <tr><th>거래처</th><td>{clientName || order.client_code}</td><th>품목</th><td>{itemName || order.item_code}</td></tr>
+        <tr><th>거래처</th><td>{clientName || order.client_code}</td><th>품목</th><td>{order.product_details?.item_name || itemName || order.item_code}</td></tr>
+        {productFields.filter(([k])=>k!=='item_name'&&k!=='material'&&order.product_details?.[k]).map(([k,label])=><tr key={k}><th>{label}</th><td colSpan="3">{order.product_details[k]}</td></tr>)}
         <tr><th>목표 수량</th><td>{Number(order.target_qty).toLocaleString()} 개</td><th>제품 단중</th><td>{order.unit_weight_kg == null ? "—" : order.unit_weight_kg + " kg"}</td></tr>
         <tr><th>작업 시작</th><td>{dateText(order.start_date)}</td><th>납기일</th><td>{dateText(order.due_date)}</td></tr>
         <tr><th>용해 / 로트</th><td>{order.heat_no || "—"}</td><th>재질</th><td>{order.casting_material || "—"}</td></tr>

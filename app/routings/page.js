@@ -1,4 +1,5 @@
 "use client";
+import Pagination,{usePagination} from "../Pagination";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AppNav from "../AppNav";
@@ -49,6 +50,7 @@ export default function Routings() {
     catch(e){setError(e.message);}finally{lock.current=false;setBusy(false);}
   }
   const filtered=routes.filter(r=>[r.routing_code,r.routing_name,r.description,...r.steps.map(s=>s.name)].join(" ").toLowerCase().includes(query.toLowerCase()));
+  const pager=usePagination(filtered,query,'routings');
   async function exportRoutes(){
     if(lock.current)return;lock.current=true;setBusy(true);
     try{await downloadWorkbook([{name:"라우팅·공정",columns:["라우팅 코드","라우팅명","사용 상태","설명","순서","공정명","작업장","공정 구분"].map((title,i)=>({title,kind:i===4?"number":"text",width:24})),rows:filtered.flatMap(r=>r.steps.map((s,i)=>[r.routing_code,r.routing_name,r.is_active?"사용 중":"사용중지",r.description,i+1,s.name,s.place,processRoles[s.role]]))}],"라우팅_목록.xlsx");}catch(e){setError(e.message);}finally{lock.current=false;setBusy(false);}
@@ -64,7 +66,7 @@ export default function Routings() {
       <div className="routing-actions"><button className="secondary-btn" type="button" disabled={form.steps.length>=30} onClick={()=>change("steps",[...form.steps,{key:crypto.randomUUID(),name:"",place:"",role:"production"}])}><Plus size={16}/> 공정 추가</button><button type="button" className="secondary-btn" onClick={reset}>새로 작성</button><button className="primary-btn">{busy?"저장 중...":"라우팅 저장"}</button></div>
     </fieldset></form></section>
     <section className="routing-card"><div className="section-row"><h2>등록된 라우팅 {filtered.length}건</h2><button className="secondary-btn" type="button" disabled={busy||loading||!filtered.length} onClick={exportRoutes}>엑셀 자료받기</button></div><label className="full-label">라우팅 검색<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="이름, 코드, 공정명"/></label><button type="button" className="secondary-btn" disabled={busy||loading} onClick={load}>새로고침</button>
-    {loading?<p>불러오는 중...</p>:filtered.map(route=><article className="routing-list-item" key={route.routing_code}><div><h3>{route.routing_name} <small>{route.routing_code} · {route.is_active?"사용 중":"사용중지"}</small></h3><p>{route.description}</p><ol className="routing-flow">{route.steps.map(s=><li key={s.key}>{s.name}</li>)}</ol></div><div className="routing-actions"><button className="secondary-btn" disabled={busy||!ready} onClick={()=>open(route)}>수정</button><button className="secondary-btn" disabled={busy||!ready} onClick={()=>open(route,true)}>복사 등록</button><button className="delete-btn" disabled={busy||!ready} onClick={()=>remove(route)}>삭제</button></div></article>)}
-    {!loading&&!filtered.length&&<p>표시할 라우팅이 없습니다.</p>}</section>
+    <Pagination pager={pager}/>{loading?<p>불러오는 중...</p>:pager.rows.map(route=><article className="routing-list-item" key={route.routing_code}><div><h3>{route.routing_name} <small>{route.routing_code} · {route.is_active?"사용 중":"사용중지"}</small></h3><p>{route.description}</p><ol className="routing-flow">{route.steps.map(s=><li key={s.key}>{s.name}</li>)}</ol></div><div className="routing-actions"><button className="secondary-btn" disabled={busy||!ready} onClick={()=>open(route)}>수정</button><button className="secondary-btn" disabled={busy||!ready} onClick={()=>open(route,true)}>복사 등록</button><button className="delete-btn" disabled={busy||!ready} onClick={()=>remove(route)}>삭제</button></div></article>)}
+    {!loading&&!filtered.length&&<p>표시할 라우팅이 없습니다.</p>}<Pagination pager={pager} compact/></section>
     </div></main>;
 }

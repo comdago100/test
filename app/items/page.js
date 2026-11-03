@@ -1,3 +1,3 @@
-import MasterRegistry from "../MasterRegistry";
+import ItemRegistry from "../ItemRegistry";
 
-export default function ItemsPage() { return <MasterRegistry kind="item"/>; }
+export default function ItemsPage() { return <ItemRegistry/>; }

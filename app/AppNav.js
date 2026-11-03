@@ -7,6 +7,7 @@ const menus = [
   ["/orders/", "작업지시 관리"],
   ["/sales/", "수주 관리"],
   ["/scanner/", "현장 스캔"],
+  ["/inspections/", "검사성적서"],
   ["/routings/", "라우팅·공정"],
   ["/purchases/", "구매·입고"],
   ["/inventory/", "재고 현황"],

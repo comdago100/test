@@ -1,6 +1,8 @@
 # 주조 공정 웹 앱
 
-일반 사용자용: [웹 사용 설명서](https://test-ict.pages.dev/manual/) · [인쇄용 PDF](https://test-ict.pages.dev/manual/FOUNDRY-user-guide.pdf). 현장 스캐너 빠른 안내와 수주·구매·재고 업무 절차를 포함합니다.
+일반 사용자용: [웹 사용 설명서](https://test-ict.pages.dev/manual/) · [인쇄용 PDF](https://test-ict.pages.dev/manual/FOUNDRY-user-guide.pdf). 현장 스캐너와 수주·구매·재고, 제품 상세정보·검사성적서 절차를 포함합니다.
+
+제품정보·검사성적서 추가 설정: 경량 ERP가 적용된 DB에는 [supabase/product_inspection.sql](supabase/product_inspection.sql) 전체를 SQL Editor에서 실행하세요. 새 설치에서는 light_erp 다음 순서입니다. 상세 사용법과 저장 구조는 [제품정보·검사성적서 안내](docs/product-inspection-guide.md)를 참고하세요. 확장 후 구버전 light_erp를 단독 재실행하지 마세요(수주 뷰 열 순서 변경).
 
 Node.js 20.9 이상에서 `npm install`, `npm run dev`로 실행합니다.
 `.env.local`에 NEXT_PUBLIC_SUPABASE_URL과 NEXT_PUBLIC_SUPABASE_ANON_KEY를 설정합니다.
