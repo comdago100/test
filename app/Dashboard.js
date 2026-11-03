@@ -28,6 +28,8 @@ export default function Dashboard({ manage = false }) {
   const [usage, setUsage] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [query, setQuery] = useState("");
+  const [salesScope,setSalesScope] = useState("");
+  useEffect(()=>{const params=new URLSearchParams(window.location.search);setSalesScope(params.get("order_id")||"");if(params.get("wo_id"))setQuery(params.get("wo_id"));},[]);
   const [filter, setFilter] = useState("전체");
   const [updated, setUpdated] = useState(null);
   const [error, setError] = useState("");
@@ -58,7 +60,7 @@ export default function Dashboard({ manage = false }) {
   }, [usage]);
   const filtered = orders.filter(o => {
     const text = [o.wo_id, o.client_code, clientNames[o.client_code], o.item_code, itemNames[o.item_code], o.routing_name].join(" ").toLowerCase();
-    return text.includes(query.toLowerCase().trim()) && matchesStage(o, filter);
+    return (!salesScope||o.order_id===salesScope) && text.includes(query.toLowerCase().trim()) && matchesStage(o, filter);
   });
   const complete = orders.filter(o => getProgress(o).complete).length;
   const progress = orders.filter(o => { const p = getProgress(o); return p.started && !p.complete; }).length;
@@ -77,6 +79,7 @@ export default function Dashboard({ manage = false }) {
         <div className="intro-actions"><span className="last-update"><Clock3 size={15}/> {updated ? `마지막 갱신 ${updated.toLocaleTimeString("ko-KR")}` : "연결 대기 중"} · 5초마다 갱신</span><button className="icon-btn" onClick={refresh} aria-label="새로고침"><RefreshCw size={18}/></button><Link className="primary-btn" href="/scanner/"><ScanLine size={18}/> 현장 스캔 <ArrowRight size={16}/></Link></div>
       </section>
       {error && <div className="alert" role="alert">{error}</div>}
+      {salesScope&&<div className="shipment-summary">선택한 수주에 연결된 작업지시입니다. <Link href={`/sales/?order_id=${encodeURIComponent(salesScope)}`}>수주 보기</Link><button className="edit-btn" type="button" onClick={()=>{setSalesScope("");window.history.replaceState(null,"",window.location.pathname);}}>전체 작업지시 보기</button></div>}
       <section className="stats" aria-label="생산 요약">
         {[["전체 작업지시", orders.length, "등록된 작업", <Layers3 key="a"/>], ["진행 중", progress, "공정 진행 중", <Activity key="b"/>], ["작업 대기", waiting, "공정 시작 전", <Clock3 key="c"/>], ["출고 완료", complete, "최종 공정 완료", <CheckCircle2 key="d"/>]].map(([title, count, sub, icon], idx) => <div className="stat" key={title}><div className="stat-top"><span>{title}</span><span className={`stat-icon icon-${idx}`}>{icon}</span></div><div className="stat-number">{count}<small>건</small></div><div className="stat-sub">{sub}</div></div>)}
       </section>
@@ -98,6 +101,7 @@ export default function Dashboard({ manage = false }) {
             {(p.heldTotal>0||p.scrapTotal>0)&&<div className="quality-summary compact"><span>불량 보류 <strong>{p.heldTotal.toLocaleString()}개</strong></span><span>확정 폐기 <strong>{p.scrapTotal.toLocaleString()}개</strong></span><Link href={`/scanner/?wo_id=${encodeURIComponent(o.wo_id)}`}>불량 확인 / 처리</Link></div>}
             <div className="order-details"><span>라우팅<strong>{o.routing_name || "기존 6공정"}</strong></span>{o.start_date && <span>작업 시작<strong>{dateText(o.start_date)}</strong></span>}{o.due_date && <span>납기<strong>{dateText(o.due_date)}</strong></span>}{o.actual_qty != null && <span>실제 생산<strong>{Number(o.actual_qty).toLocaleString()} 개</strong></span>}{o.unit_weight_kg != null && <span>단중<strong>{Number(o.unit_weight_kg).toLocaleString()} kg</strong></span>}{o.heat_no && <span>용해 번호<strong>{o.heat_no}</strong></span>}{o.casting_material && <span>재질<strong>{o.casting_material}</strong></span>}{manage && <button className="edit-btn" onClick={() => setEditor({mode:"edit",order:{...o},usage:(usageByOrder[o.wo_id] || []).map(x=>({...x}))})}>수정 / 삭제</button>}{manage && <button className="edit-btn" onClick={() => setPrintOrder(o)}>지시서 / QR 인쇄</button>}</div><div className="material-line"><Boxes size={14}/><span>자재 투입</span>{usageByOrder[o.wo_id]?.length ? usageByOrder[o.wo_id].map((u, i) => <span className="material-chip" key={u.usage_id || i}>{materialNames[u.raw_code] || u.raw_code} {Number(u.input_qty).toLocaleString()} kg</span>) : <span className="muted">기록 없음</span>}</div>
             {o.notes && <p className="order-note">메모 · {o.notes}</p>}
+            {o.order_id&&<div className="erp-actions"><Link className="edit-btn" href={`/sales/?order_id=${encodeURIComponent(o.order_id)}`}>연결 수주 보기</Link></div>}
           </article>;
         })}
       </section>

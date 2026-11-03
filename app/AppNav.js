@@ -5,8 +5,11 @@ import { usePathname } from "next/navigation";
 const menus = [
   ["/", "생산 현황"],
   ["/orders/", "작업지시 관리"],
+  ["/sales/", "수주 관리"],
   ["/scanner/", "현장 스캔"],
   ["/routings/", "라우팅·공정"],
+  ["/purchases/", "구매·입고"],
+  ["/inventory/", "재고 현황"],
   ["/clients/", "거래처 등록"],
   ["/items/", "품목 등록"],
   ["/materials/", "원재료 등록"],
