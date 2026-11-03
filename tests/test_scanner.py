@@ -70,6 +70,26 @@ class QuantityScannerTest(unittest.TestCase):
         self.assertEqual(self.window.quantity_input.maximum(), 0)
         self.assertFalse(self.window.save_button.isEnabled())
 
+    def test_quality_holds_scrap_and_replacement_budget_match_server_balances(self):
+        self.order["process_quantities"].update({"조형": 100, "주입": 97})
+        self.order["quality_quantities"] = {"주입": {"held": 2, "scrapped": 1}}
+        self.lookup()
+        self.assertEqual(self.window.quantity_input.maximum(), 1)
+        self.window.station_combo.setCurrentIndex(1)
+        self.assertEqual(self.window.quantity_input.maximum(), 0)
+        self.assertIn("불량 보류 2개", self.window.info_label.text())
+        self.assertIn("확정 폐기 1개", self.window.info_label.text())
+
+    def test_quality_web_link_opens_only_for_a_confirmed_loaded_order(self):
+        self.assertFalse(self.window.quality_button.isEnabled())
+        self.lookup()
+        with patch.object(self.module.webbrowser, "open") as opened:
+            self.window.open_quality()
+            opened.assert_called_once_with("https://test-ict.pages.dev/scanner/?wo_id=WO-PARTIAL")
+            self.window.pending = {"p_request_id": "pending"}
+            self.window.open_quality()
+            opened.assert_called_once()
+
     def test_routed_scanner_uses_snapshot_keys_and_recovers_after_lookup_error(self):
         self.order.update(routing_steps=[
             {"key": f"p{i}", "name": f"공정{i}"} for i in range(8)

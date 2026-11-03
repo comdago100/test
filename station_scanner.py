@@ -1,4 +1,5 @@
 import sys
+import webbrowser
 from uuid import uuid4
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QLineEdit, QVBoxLayout, QWidget, QLabel,
@@ -7,8 +8,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt
 from supabase_config import supabase
-from production_quantities import STEPS, order_steps
-from production_codes import parse_order_code
+from production_quantities import STEPS, order_steps, quality_counts
+from production_codes import parse_order_code, build_order_url
 
 
 class StationScanner(QMainWindow):
@@ -50,6 +51,11 @@ class StationScanner(QMainWindow):
         self.save_button.clicked.connect(self.record)
         self.save_button.setEnabled(False)
         layout.addWidget(self.save_button)
+        self.quality_button = QPushButton("불량 등록 / 처리 (웹 화면)")
+        self.quality_button.setToolTip("웹에서 불량을 기록한 뒤 PC에서 지시서를 다시 조회하세요.")
+        self.quality_button.clicked.connect(self.open_quality)
+        self.quality_button.setEnabled(False)
+        layout.addWidget(self.quality_button)
         widget = QWidget()
         widget.setLayout(layout)
         self.setCentralWidget(widget)
@@ -67,19 +73,22 @@ class StationScanner(QMainWindow):
         step = self.station_combo.currentIndex()
         target = int(self.order["target_qty"])
         done = int(counts.get(stages[step]["key"], 0))
-        previous = target if step == 0 else int(counts.get(stages[step - 1]["key"], 0))
-        available = max(0, previous - done)
+        held, scrapped = quality_counts(self.order)
+        previous = target + sum(scrapped) if step == 0 else int(counts.get(stages[step - 1]["key"], 0))
+        available = min(2147483647, max(0, previous - done - held[step] - scrapped[step]))
         shipped = int(counts.get(stages[-1]["key"], 0))
         self.info_label.setText(
             f"[{self.order['wo_id']}] 목표 {target}개\n"
             f"{stages[step]['name']} 누적 {done}개 / 이번 처리 가능 {available}개\n"
             f"누적 출고 {shipped}개 / 출고 잔량 {max(0, target-shipped)}개"
+            f"\n불량 보류 {sum(held)}개 / 확정 폐기 {sum(scrapped)}개"
         )
         self.info_label.setStyleSheet("color: #24523f;")
         self.quantity_input.setRange(0, available)
         self.quantity_input.setValue(0)
         self.note_input.clear()
         self.save_button.setEnabled(available > 0)
+        self.quality_button.setEnabled(True)
         self.quantity_input.setFocus()
 
     def process_scan(self):
@@ -88,6 +97,7 @@ class StationScanner(QMainWindow):
         previous_steps = self.stage_defs
         previous_key = previous_steps[self.station_combo.currentIndex()]["key"]
         self.order = None
+        self.quality_button.setEnabled(False)
         self.quantity_input.setRange(0, 0)
         self.save_button.setEnabled(False)
         try:
@@ -132,6 +142,7 @@ class StationScanner(QMainWindow):
                 "p_note": self.note_input.text().strip(),
             }
         self.busy = True
+        self.quality_button.setEnabled(False)
         self.save_button.setEnabled(False)
         for control in (self.station_combo, self.scan_input, self.quantity_input, self.note_input):
             control.setEnabled(False)
@@ -154,8 +165,13 @@ class StationScanner(QMainWindow):
             self.save_button.setEnabled(True)
         finally:
             self.busy = False
+            self.quality_button.setEnabled(self.pending is None and self.order is not None)
             for control in (self.station_combo, self.scan_input, self.quantity_input, self.note_input):
                 control.setEnabled(self.pending is None)
+
+    def open_quality(self):
+        if self.order and not self.busy and not self.pending:
+            webbrowser.open(build_order_url(self.order["wo_id"]))
 
 
 if __name__ == "__main__":
