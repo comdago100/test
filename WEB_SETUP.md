@@ -1,5 +1,7 @@
 # 주조 공정 웹 앱
 
+일반 사용자용: [웹 사용 설명서](https://test-ict.pages.dev/manual/) · [인쇄용 PDF](https://test-ict.pages.dev/manual/FOUNDRY-user-guide.pdf). 현장 스캐너 빠른 안내와 수주·구매·재고 업무 절차를 포함합니다.
+
 Node.js 20.9 이상에서 `npm install`, `npm run dev`로 실행합니다.
 `.env.local`에 NEXT_PUBLIC_SUPABASE_URL과 NEXT_PUBLIC_SUPABASE_ANON_KEY를 설정합니다.
 Cloudflare Pages: 빌드 명령 `npm run build`, 출력 디렉터리 `out`, 루트 디렉터리 빈칸.

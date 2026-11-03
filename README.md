@@ -1,5 +1,7 @@
 # 2022년 제조업 재고수불부
 
+FOUNDRY 웹 공정 관리: [운영 화면](https://test-ict.pages.dev/) · [사용 설명서](https://test-ict.pages.dev/manual/) · [설명서 PDF](https://test-ict.pages.dev/manual/FOUNDRY-user-guide.pdf) · [웹 설치 안내](WEB_SETUP.md).
+
 원재료·부재료·제품 엑셀 9개를 읽어 수불을 계산하고, 기업 표준 A4 가로 인쇄 양식을 적용한 엑셀 4개 시트를 출력하는 Windows 데스크톱 앱입니다. Python 3.10+, PySide6, pandas, openpyxl, numpy를 사용합니다.
 
 ## 실행 및 사용

@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FOUNDRY 사용 설명서</title>
+<style>
+:root{--green:#24523f;--ink:#23342c;--sub:#65766c;--line:#dce5dd;--pale:#eff5f0;--orange:#a85e30}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#eef1ed;color:var(--ink);font-family:"Malgun Gothic","맑은 고딕",sans-serif;font-size:11pt;line-height:1.7}.toolbar{position:sticky;top:0;z-index:5;background:var(--green);color:#fff;padding:12px 20px;display:flex;gap:18px;align-items:center;justify-content:center;flex-wrap:wrap}.toolbar a,.toolbar button{color:#fff;background:transparent;border:1px solid #93af9d;padding:7px 12px;border-radius:6px;font:inherit;text-decoration:none}.sheet{width:182mm;height:270mm;margin:24px auto;padding:15mm 12mm 18mm;background:#fff;position:relative;box-shadow:0 3px 20px #16332313;break-after:page}.sheet:last-child{break-after:auto}.kicker{font-size:9pt;color:var(--green);font-weight:700;letter-spacing:1.8px;margin:0 0 12px}h1{font-size:32pt;line-height:1.35;margin:20px 0 22px;letter-spacing:-1.3px}h2{font-size:22pt;line-height:1.4;margin:0 0 20px;letter-spacing:-.7px}h3{font-size:12pt;margin:20px 0 8px;color:var(--green)}p{margin:8px 0 12px}a{color:var(--green);text-underline-offset:3px}.lead{color:var(--sub);font-size:12pt}.muted{color:var(--sub);font-size:9.5pt}.box{border:1px solid var(--line);border-radius:9px;padding:13px 16px;margin:16px 0;background:var(--pale)}.notice{border-left:4px solid #d99869;background:#fff6eb;padding:12px 15px;margin:16px 0;color:#79502f}.box p:last-child,.notice p:last-child{margin-bottom:0}.flow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:20px 0}.flow span{padding:9px 12px;background:var(--pale);border:1px solid var(--line);border-radius:7px;font-size:10pt;font-weight:700}.flow b{color:#73917c}table{border-collapse:collapse;width:100%;font-size:9.7pt;margin:12px 0 18px}th,td{border-bottom:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top}th{background:var(--pale);color:var(--green)}th:first-child{width:27%}ol,ul{padding-left:23px;margin:9px 0 16px}li{margin:7px 0;padding-left:3px}.footer{position:absolute;bottom:9mm;left:12mm;right:12mm;border-top:1px solid var(--line);padding-top:8px;display:flex;justify-content:space-between;font-size:8pt;color:var(--sub)}.toc{display:grid;grid-template-columns:1fr 1fr;gap:0 22px;list-style:none;padding:0;font-size:10pt}.toc li{border-bottom:1px solid var(--line);padding:6px 0;margin:0}.toc a{text-decoration:none}.cover-mark{display:inline-block;background:var(--green);color:#fff;letter-spacing:3px;font-weight:700;padding:9px 16px;border-radius:8px}.formula{font-weight:700;color:var(--green);line-height:1.9}.steps-big{list-style:none;padding:0;counter-reset:step}.steps-big li{counter-increment:step;position:relative;padding:10px 12px 10px 48px;margin:10px 0;background:var(--pale);border-radius:8px}.steps-big li:before{content:counter(step);position:absolute;left:13px;top:11px;width:24px;height:24px;border-radius:50%;background:var(--green);color:#fff;text-align:center;font-size:10pt;line-height:24px}.check{font-weight:700;color:var(--green)}.sheet:target{outline:2px solid #83a98f}button{cursor:pointer}
+@media(max-width:720px){body{font-size:10.5pt}.sheet{width:calc(100% - 20px);height:auto;min-height:0;margin:12px 10px;padding:28px 22px 72px}.footer{left:22px;right:22px;bottom:20px}.toc{grid-template-columns:1fr}h1{font-size:29pt}h2{font-size:21pt}table{font-size:9pt}th,td{padding:8px 6px}.toolbar{position:static;font-size:10pt}}
+@page{size:A4;margin:12mm 14mm}
+@media print{html{scroll-behavior:auto}body{background:#fff;font-size:11pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}.toolbar{display:none}.sheet{width:182mm;height:270mm;margin:0;padding:5mm 0 17mm;box-shadow:none;outline:none!important}.footer{left:0;right:0;bottom:4mm}a{color:inherit;text-decoration:none}h3,th{break-after:avoid}tr,.box,.notice,li{break-inside:avoid}}
+@media screen{.sheet{height:auto;min-height:270mm}}
+@media screen and (max-width:720px){.sheet{min-height:0}}
+@media print{body{font-size:10.5pt;line-height:1.5}h2{margin-bottom:16px}h3{margin:15px 0 7px}p{margin:7px 0 10px}li{margin:5px 0}table{font-size:9.5pt;margin:10px 0 14px}th,td{padding:7px 9px}.box,.notice{padding:11px 14px;margin:13px 0}.steps-big li{margin:8px 0;padding-top:9px;padding-bottom:9px}}
+</style>
+</head>
+<body>
+<div class="toolbar"><strong>FOUNDRY 사용 설명서</strong><a href="https://test-ict.pages.dev/">업무 화면 열기</a><a href="FOUNDRY-user-guide.pdf" download>PDF 받기</a><button type="button" onclick="window.print()">인쇄</button></div>
+
+<section class="sheet" id="start">
+<span class="cover-mark">FOUNDRY</span>
+<h1>주조 공정 관리<br>사용 설명서</h1>
+<p class="lead">사무실의 수주·구매부터 현장의 생산·출고까지<br>현재 배포된 기능을 업무 순서대로 안내합니다.</p>
+<div class="box"><strong>운영 주소</strong><br><a href="https://test-ict.pages.dev/">https://test-ict.pages.dev/</a><p class="muted">PC와 휴대폰에서 같은 운영 주소를 사용합니다.<br>다른 장소에서도 같은 DB의 저장된 자료를 조회합니다.</p></div>
+<h3>필요한 업무부터 찾아보세요</h3>
+<ol class="toc">
+<li><a href="#quick">02 · 현장 작업자 빠른 안내</a></li><li><a href="#masters">03 · 메뉴와 기초정보 준비</a></li>
+<li><a href="#sales">04 · 수주 등록과 작업지시 연결</a></li><li><a href="#orders">05 · 작업지시·자재 투입·인쇄</a></li>
+<li><a href="#scan">06 · 나누어 생산하고 출고하기</a></li><li><a href="#quality">07 · 불량·재작업·폐기 처리</a></li>
+<li><a href="#purchases">08 · 원재료 구매·입고</a></li><li><a href="#inventory">09 · 재고 읽기와 기초재고 확인</a></li>
+<li><a href="#corrections">10 · 수정·취소와 수불 이력</a></li><li><a href="#exports">11 · 엑셀·문제 해결·일일 점검</a></li>
+</ol>
+<h3>가장 중요한 세 가지</h3>
+<p><strong>스캔은 조회입니다.</strong> 공정과 이번 수량을 확인한 뒤 저장합니다.</p>
+<p><strong>제품은 개, 원재료는 kg입니다.</strong> 생산 수량 기록이 원재료 투입을 대신하지 않습니다.</p>
+<p><strong>출고는 마지막 공정에서 기록합니다.</strong> 같은 출고를 수주 화면에 다시 입력하지 않습니다.</p>
+<p class="muted">2026년 11월 3일 배포 기능 기준 · v1.0<br>문서의 번호·거래처·수량은 사용법을 설명하기 위한 예시입니다.<br>설명서 열람에 추가 DB 설정은 필요 없습니다.</p>
+<div class="footer"><span>FOUNDRY · 사무실 / 현장 공통</span><span>01 / 11</span></div>
+</section>
+
+<section class="sheet" id="quick">
+<p class="kicker">SHOP FLOOR · QUICK START</p><h2>현장 작업자 빠른 안내</h2>
+<p class="lead">무선 스캐너는 지시서를 읽는 장치입니다.<br>처리한 제품 개수는 작업자가 입력합니다.</p>
+<ol class="steps-big">
+<li><strong>PC에서 현장 스캔을 엽니다.</strong><br>무선 수신기 또는 블루투스로 연결한 스캐너가 PC에 문자처럼 입력되는지 확인합니다.</li>
+<li><strong>작업지시 번호 칸을 누르고 스캔합니다.</strong><br>Enter가 함께 입력되면 조회됩니다. 자동 조회되지 않으면 <strong>작업 조회</strong>를 누릅니다.</li>
+<li><strong>조회된 지시서와 공정을 확인합니다.</strong><br>지시번호·품목이 맞는지 보고, 이번에 실제 완료한 공정을 선택합니다.</li>
+<li><strong>이번 처리 수량을 입력합니다.</strong><br>예: 지금 정상 완료한 수량이 17개이면 <strong>17</strong>을 입력합니다. PC 키보드나 숫자 키패드를 사용합니다.</li>
+<li><strong>「공정명 수량 기록」을 누릅니다.</strong><br>성공 안내와 누적 수량을 확인한 뒤 다음 작업을 진행합니다.</li>
+</ol>
+<div class="notice"><strong>다른 지시서를 찍기 전에는 입력 위치부터 확인하세요.</strong><p>조회 후에는 수량 칸에 커서가 있을 수 있습니다. 다른 지시서는 상단의 <strong>작업지시 번호</strong> 칸을 다시 눌러 스캔합니다. 바코드가 수량 칸에 입력되었다면 저장하지 말고 지웁니다.</p></div>
+<h3>휴대폰을 사용하는 경우</h3>
+<p>기본 카메라로 지시서 QR을 읽고 링크를 열면 해당 작업이 조회됩니다. 공정 선택 → 이번 수량 입력 → 수량 기록 순서는 PC와 같습니다. 웹의 <strong>카메라로 스캔</strong>도 사용할 수 있습니다.</p>
+<h3>별도 PC 스캐너 프로그램을 사용하는 경우</h3>
+<p>지시서 조회 후 해당 공정과 처리 가능 수량을 확인하고 <strong>이번 수량 기록</strong>을 누릅니다. 불량은 <strong>불량 등록 / 처리 (웹 화면)</strong>에서 처리하고 PC에서 지시서를 다시 조회합니다.</p>
+<p class="muted">QR을 읽으려면 2차원 코드를 지원하는 스캐너가 필요합니다. 1차원 전용 장비는 기존에 읽을 수 있는 바코드 또는 번호 직접 입력을 사용하세요. 스캔 후 Enter 설정은 장비 설명서에서 확인합니다.</p>
+<div class="footer"><span>이 페이지를 출력해 작업장에 비치하세요.</span><span>02 / 11</span></div>
+</section>
+
+<section class="sheet" id="masters">
+<p class="kicker">OFFICE · BEFORE YOU START</p><h2>메뉴와 기초정보 준비</h2>
+<table><thead><tr><th>메뉴</th><th>하는 일</th></tr></thead><tbody>
+<tr><td>생산 현황</td><td>공정별 누적 수량·출고 잔량·불량·납기 확인</td></tr>
+<tr><td>작업지시 관리</td><td>지시서 등록·수정, 실제 원재료 투입, QR 인쇄</td></tr>
+<tr><td>수주 관리</td><td>고객 주문 등록, 작업지시 생성, 출하 진행 확인</td></tr>
+<tr><td>현장 스캔</td><td>작업 조회, 정상 완료·출고 수량, 불량 처리</td></tr>
+<tr><td>라우팅·공정</td><td>작업에 적용할 공정 순서 등록·수정·복사·삭제</td></tr>
+<tr><td>구매·입고</td><td>원재료 실입고·단가 등록, 수정·취소</td></tr>
+<tr><td>재고 현황</td><td>원재료·완제품 재고, 수불 이력, 원재료 기초 확인</td></tr>
+<tr><td>거래처 / 품목 / 원재료 등록</td><td>업무 화면에서 선택할 코드와 기본정보 준비</td></tr>
+</tbody></table>
+<h3>처음 사용하는 순서</h3>
+<ol><li><strong>거래처 등록:</strong> 코드·이름을 입력하고 매출처 / 매입처 / 매출·매입처 / 외주처를 구분합니다. 수주는 매출처, 구매는 매입처가 필요합니다.</li>
+<li><strong>상세정보:</strong> 담당자·연락처·사업자정보·사업장 및 납품 주소·결제 조건 등을 필요한 만큼 입력합니다. 거래중지 거래처는 신규 선택에서 제외됩니다.</li>
+<li><strong>품목 등록:</strong> 생산하거나 납품할 제품의 코드·이름을 등록합니다.</li>
+<li><strong>원재료 등록:</strong> 실제 투입하는 선철·고철 등의 코드·이름을 등록합니다. 원재료 단위는 kg입니다. 등록만으로 재고가 늘지는 않습니다.</li>
+<li><strong>라우팅·공정:</strong> 현장에 맞는 공정 순서를 준비합니다. 마지막에는 출고 공정이 한 번 있어야 합니다.</li></ol>
+<div class="box"><strong>라우팅 예시</strong><p>주물 제작: 조형·중자 → 용해·주입 → 냉각·해체 → 쇼트 → 절단·사상 → 검사 → 포장 → 출고</p><p>완제품 매입·납품: 매입 입고 → 입고검사 → 포장 → 출고</p></div>
+<p class="muted">라우팅은 1~30개 공정으로 구성합니다. 수정한 순서는 새 작업지시부터 적용됩니다. 이미 발행된 지시서는 당시 순서를 유지하며, 사용된 라우팅은 삭제 시 사용중지로 보관합니다. 모바일의 상단 메뉴는 가로로 밀어 확인하세요.</p>
+<div class="footer"><span>기초정보를 먼저 등록하면 다음 화면에서 바로 선택할 수 있습니다.</span><span>03 / 11</span></div>
+</section>
+
+<section class="sheet" id="sales">
+<p class="kicker">SALES ORDERS</p><h2>수주를 작업지시에 연결하기</h2>
+<div class="flow"><span>수주 등록</span><b>→</b><span>작업지시 생성</span><b>→</b><span>현장 작업</span><b>→</b><span>출고 자동 집계</span></div>
+<h3>1. 수주 등록</h3>
+<ol><li><strong>수주 관리</strong>에서 수주번호, 매출처, 품목, 수주 수량, 납기일을 입력합니다.</li><li>단가는 선택 사항입니다. 입력하면 수량 × 단가를 원 단위로 반올림한 총액을 표시합니다. 미입력과 0원은 서로 다릅니다.</li><li><strong>수주 저장</strong>을 누르고 등록된 수주 목록을 확인합니다.</li></ol>
+<h3>2. 연결 작업지시 생성</h3>
+<ol><li>수주 카드의 <strong>작업지시 생성</strong>을 누릅니다.</li><li>거래처·품목·미지시 수량·납기일이 기존 작업지시 창에 채워집니다.</li><li>작업지시 번호와 라우팅을 정하고, 이번에 발행할 목표 수량을 확인합니다. 아직 투입하지 않은 자재는 입력하지 않습니다.</li><li><strong>작업지시 저장</strong>을 누릅니다. 연결 작업의 목표 수량 합계는 수주 수량을 넘을 수 없습니다.</li></ol>
+<div class="box"><strong>100개 수주를 처리하는 두 방법</strong><p><strong>한 작업지시로 진행:</strong> 목표 100개짜리 지시서를 만들고, 현장에서 17개·33개·50개 등으로 나누어 작업합니다.</p><p><strong>작업지시를 나누어 발행:</strong> 납기 회차나 로트별 관리가 필요하면 17개짜리와 83개짜리 등으로 나눕니다. 미지시 수량만큼 추가 발행할 수 있습니다.</p></div>
+<h3>3. 진행·출고 확인</h3>
+<p><strong>연결 작업의 공정 상태</strong>를 펼치면 작업지시별 현재 상태·목표·출고 수량을 봅니다. <strong>연결 작업지시 보기</strong>로 상세 공정 수량을 확인할 수 있습니다.</p>
+<p>누적 출고는 각 작업지시의 마지막 출고 실적 합계입니다. 예를 들어 수주 100개 중 17개를 출고하면 수주 출고 잔량은 83개입니다.</p>
+<div class="notice"><strong>수정할 때</strong><p>작업지시가 연결된 수주는 거래처·품목을 바꾸거나 삭제할 수 없습니다. 수주 수량은 이미 발행한 합계보다 작게 줄일 수 없습니다. 수주 납기를 수정해도 기존 작업지시 납기는 자동으로 바뀌지 않으므로 필요한 지시서를 별도로 수정합니다.</p></div>
+<div class="footer"><span>출고 수량을 수주 화면에 중복 입력하지 않습니다.</span><span>04 / 11</span></div>
+</section>
+
+<section class="sheet" id="orders">
+<p class="kicker">WORK ORDERS</p><h2>작업지시와 원재료 투입</h2>
+<h3>작업지시를 직접 등록하는 경우</h3>
+<ol><li><strong>작업지시 관리 → 작업지시 등록</strong>을 누릅니다.</li><li>작업지시 번호·거래처·품목·라우팅·목표 수량을 선택합니다. 시작일·납기일·단중·용해 번호·재질·메모는 필요한 값을 입력합니다.</li><li><strong>작업지시 저장</strong> 후 목록에서 확인합니다.</li></ol>
+<div class="notice">수주와 연결하려면 <strong>수주 관리의 작업지시 생성</strong>으로 발행하세요. 작업지시 관리에서 독립적으로 등록한 지시는 수주에 자동 연결되지 않으며, 기존 지시서를 수주에 붙이는 기능은 현재 제공하지 않습니다.</div>
+<h3>원재료 투입 내역을 기록하는 경우</h3>
+<ol><li>해당 작업지시의 <strong>수정 / 삭제</strong>를 누릅니다.</li><li><strong>원재료 투입 → 자재 추가</strong>에서 원재료와 실제 투입 중량(kg)을 입력합니다. 여러 종류의 자재를 추가할 수 있습니다.</li><li>기존 행을 수정할 때는 그 행의 총 투입량으로 바꿉니다. 새 투입분을 별도 행으로 추가할 수도 있으나 같은 투입을 두 방식으로 중복 기록하지 않습니다.</li><li>저장 후 재고 현황에서 사용량과 현재고가 바뀌었는지 확인합니다.</li></ol>
+<div class="box"><strong>투입 25kg 후 10kg을 추가 투입했다면</strong><p>기존 25kg 행을 <strong>35kg으로 수정</strong>하거나, 기존 행을 두고 <strong>10kg 행을 추가</strong>합니다. 기존 행을 35kg으로 바꾸면서 10kg 행도 추가하면 45kg으로 중복 계산됩니다.</p></div>
+<h3>지시서와 QR 인쇄</h3>
+<p>작업지시 카드의 <strong>지시서 / QR 인쇄</strong>에서 내용을 확인하고 인쇄합니다. 브라우저 인쇄창에서 PDF 저장도 가능합니다. 새 QR은 운영 주소와 지시번호를 담고 있습니다.</p>
+<h3>필드와 수량의 의미</h3>
+<table><thead><tr><th>항목</th><th>입력·확인 기준</th></tr></thead><tbody>
+<tr><td>목표 수량</td><td>이 작업지시에서 최종 납품할 제품 개수</td></tr>
+<tr><td>검사 완료 수량</td><td>검사로 지정된 마지막 공정의 실적에서 자동 계산. 검사가 없는 라우팅은 0으로 표시</td></tr>
+<tr><td>제품 단중</td><td>제품 한 개의 중량 정보. 입력만으로 자재 투입량이 자동 계산되지 않음</td></tr>
+<tr><td>원재료 투입</td><td>실제 소비한 kg. 제품 완료 개수와 별도로 기록</td></tr>
+</tbody></table>
+<p class="muted">등록한 작업지시 번호와 라우팅은 발행 후 바꾸지 않습니다. 납기·메모·투입 내역 등은 수정할 수 있으며, 이미 기록된 실적보다 목표 수량을 과도하게 줄이면 저장이 거절됩니다.</p>
+<div class="footer"><span>제품 개수와 원재료 kg을 구분해 기록하세요.</span><span>05 / 11</span></div>
+</section>
+
+<section class="sheet" id="scan">
+<p class="kicker">PARTIAL PRODUCTION &amp; SHIPMENT</p><h2>나누어 생산하고 출고하기</h2>
+<p class="lead">한 번에 만드는 수량은 정해져 있지 않습니다.<br>같은 작업지시로 여러 차례 기록할 수 있습니다.</p>
+<h3>매번 「이번에 완료한 수량」만 입력합니다</h3>
+<table><thead><tr><th>상황</th><th>이번 입력</th><th>저장 후 누적</th></tr></thead><tbody>
+<tr><td>첫 작업 완료</td><td>17개</td><td>17개</td></tr>
+<tr><td>이후 23개 추가 완료</td><td>23개</td><td>40개</td></tr>
+<tr><td>나머지 60개 완료</td><td>60개</td><td>100개</td></tr>
+</tbody></table>
+<div class="notice">추가 23개를 처리한 순간 누적 40개를 입력하면 기존 17개에 40개가 더해집니다. 정상 기록 칸에는 누적 수량이 아니라 <strong>이번 수량</strong>을 넣습니다.</div>
+<h3>앞 공정에서 넘어온 수량 안에서 처리합니다</h3>
+<p>앞 공정 완료가 40개이고 이번 공정 완료가 17개라면, 불량·폐기 등 다른 변동이 없을 때 이번 공정은 23개까지 처리할 수 있습니다. 화면의 <strong>처리 가능 수량</strong>을 기준으로 확인하세요.</p>
+<p>앞 공정을 100개 모두 끝낼 때까지 기다릴 필요는 없습니다. 먼저 완료한 17개를 다음 공정으로 진행하고, 남은 수량은 앞 공정에서 계속 작업하면 됩니다.</p>
+<div class="box"><strong>작업지시 목표 100개 · 먼저 17개 출고</strong><p>각 공정에서 17개씩 정상 완료 기록 → 출고 직전 공정 완료 17개 → 마지막 <strong>출고</strong>를 선택해 17개 기록</p><p class="formula">누적 출고 17개 / 출고 잔량 83개</p><p>이후 남은 물량을 원하는 수량으로 나누어 진행합니다. 전체 목표가 출고되어야 최종 출고 완료가 됩니다.</p></div>
+<h3>기존 수량 확인 필요가 표시되는 경우</h3>
+<p>과거에 상태만 관리했던 지시는 실제 수량을 먼저 확인해야 합니다. 현장 스캔에서 지시서를 조회하고 <strong>각 공정의 현재까지 누적 완료 수량</strong>을 모두 입력한 뒤 <strong>기존 수량 확인 및 시작</strong>을 누릅니다. 미처리 공정은 0, 뒤 공정은 앞 공정보다 클 수 없습니다.</p>
+<p><strong>이 초기 확인 화면만 누적 수량을 입력합니다.</strong> 확인 완료 후 일반 기록은 다시 이번 처리 수량을 입력합니다. 잘못 확인한 초기 수량은 임의로 추가 입력해 맞추지 말고 운영 담당자에게 정정을 요청하세요.</p>
+<p><strong>저장 결과가 불확실하면 같은 기록 확인 / 재시도</strong>로 확인합니다. 새 기록으로 중복 입력하지 말고, 결과를 확인한 뒤 다음 작업으로 이동합니다.</p>
+<div class="footer"><span>스캔 → 조회 → 공정 확인 → 이번 수량 → 저장 결과 확인</span><span>06 / 11</span></div>
+</section>
+
+<section class="sheet" id="quality">
+<p class="kicker">QUALITY · REWORK · SCRAP</p><h2>불량이 발생했을 때</h2>
+<p>현장 스캔에서 작업지시서를 조회하고 <strong>실제 불량을 발견한 공정</strong>을 선택한 뒤 <strong>불량 관리</strong>를 사용합니다.</p>
+<h3>1. 정상 완료 입력 여부를 먼저 확인합니다</h3>
+<table><thead><tr><th>현재 상태</th><th>선택·입력 방법</th></tr></thead><tbody>
+<tr><td>아직 정상 완료로 기록하지 않음</td><td><strong>아직 완료하지 않은 수량</strong> 선택. 20개 중 3개 불량이면 정상 수량 기록 17개 + 불량 보류 3개로 나누어 입력</td></tr>
+<tr><td>20개를 이미 정상 완료로 기록함</td><td><strong>완료 실적에서 분리</strong> 선택 후 불량 3개 등록. 양품 누적은 17개로 줄어듦</td></tr>
+</tbody></table>
+<p>불량 수량·사유·메모를 입력하고 <strong>불량 보류 등록</strong>을 누릅니다. 후속 공정이 이미 사용한 수량은 앞 공정에서 분리할 수 없습니다. 출고 완료 수량도 이 방식으로 불량 분리하지 않습니다.</p>
+<h3>2. 보류 건의 「이 불량 처리」를 누릅니다</h3>
+<table><thead><tr><th>처리 방법</th><th>처리 결과</th></tr></thead><tbody>
+<tr><td>재작업 후 재투입</td><td>보류에서 빠지고 <strong>같은 공정의 처리 대기</strong>로 돌아갑니다. 자동 완료·자동 출고하지 않습니다. 정상 처리 후 수량 기록이 필요합니다.</td></tr>
+<tr><td>폐기 확정</td><td>보류에서 빠지고 폐기로 기록됩니다. 최종 납품 목표는 유지하고 첫 공정에서 폐기 수량만큼 보충 생산할 수 있습니다.</td></tr>
+<tr><td>불량 등록 취소<br>(입력 정정)</td><td>잘못 등록한 불량을 취소합니다. 완료 실적에서 분리했던 건이면 취소 수량만큼 양품 누적이 복원됩니다.</td></tr>
+</tbody></table>
+<div class="box"><strong>보류 5개 중 3개는 수리 가능, 2개는 폐기라면</strong><p><strong>재작업 후 재투입 3개</strong>와 <strong>폐기 확정 2개</strong>를 각각 저장합니다. 3개는 해당 공정에서 정상 처리 후 다시 완료 기록합니다. 폐기 2개는 첫 공정부터 보충 생산하고 후속 공정을 거쳐 납품 목표를 맞춥니다.</p></div>
+<h3>3. 입력한 처리 방법이나 수량을 잘못 선택했다면</h3>
+<p><strong>최근 불량 처리 이력 → 불량 처리 취소</strong>를 사용합니다. 이미 재투입 물량을 완료했거나 폐기 보충분을 생산했다면 관련 수량과 충돌해 취소가 거절될 수 있습니다. 후속 기록과 실제 물량을 확인한 뒤 정정하세요.</p>
+<p class="muted">보류 수량을 넘겨 처리할 수 없습니다. 폐기 개수만으로 원재료 kg이 되돌아오거나 고철 재고가 자동 생성되지는 않습니다. 고객 반품과 원재료 회수는 현재 기능에 포함되지 않습니다.</p>
+<div class="footer"><span>불량 보류는 정상 완료와 분리하고, 실제 처리 결과를 기록합니다.</span><span>07 / 11</span></div>
+</section>
+
+<section class="sheet" id="purchases">
+<p class="kicker">PURCHASE RECEIPTS</p><h2>원재료 구매·입고</h2>
+<p class="lead">원재료 등록은 기준정보입니다.<br>실제 재고 입고는 구매·입고에서 기록합니다.</p>
+<h3>실제로 들어온 원재료 등록</h3>
+<ol><li><strong>구매·입고</strong>에서 매입처를 선택합니다. 거래처 구분이 매입처 또는 매출/매입처이고 사용 중이어야 합니다.</li><li>입고 원재료, 구매·입고일, 구매 수량(kg), 구매 단가(원/kg)를 입력합니다.</li><li>예상 총액과 메모를 확인하고 <strong>입고 등록</strong>을 누릅니다. 단가 0원도 입력할 수 있습니다.</li><li>입고 내역과 <strong>재고 현황 → 원재료 재고</strong>를 확인합니다.</li></ol>
+<div class="box"><strong>입고 계산 예시</strong><p>선철 <strong>25.125kg</strong> × <strong>1,234.5원/kg</strong> = <strong>31,017원</strong><br>총액은 원 단위 반올림입니다. kg 수량과 단가는 소수를 입력할 수 있습니다.</p></div>
+<h3>구매 내역을 고칠 때</h3>
+<p>해당 행의 <strong>입고 수정</strong>을 누르고 변경할 내용을 입력한 뒤 <strong>입고 수정 저장</strong>을 누릅니다. 수정된 유효 입고 수량으로 재고가 다시 계산됩니다.</p>
+<p>예를 들어 100kg을 잘못 입력했고 실제 입고가 90kg이면, 원래 입고를 90kg으로 수정합니다. 정상 입고를 그대로 두고 별도 음수 구매를 입력하는 방식은 사용하지 않습니다.</p>
+<h3>잘못 등록한 입고를 없앨 때</h3>
+<p><strong>취소 / 삭제</strong>를 누릅니다. 해당 입고는 재고 계산에서 제외되며 원본과 정정 이력은 남습니다. <strong>취소 입고</strong> 또는 <strong>전체</strong> 필터에서 확인합니다. 취소된 입고는 수정할 수 없으므로, 실제 입고가 다시 필요하면 확인 후 새로 등록합니다.</p>
+<div class="notice"><strong>기초조정 행은 구매 입고와 다릅니다.</strong><p>초기 실제 보유량을 맞춘 기록입니다. 단가·구매금액이 없으며 <strong>기초 확인</strong>을 통해 재고 화면에서 확인합니다. 기초조정을 취소하면 재고 기준도 바뀌므로 원인을 확인한 뒤 처리하세요.</p></div>
+<h3>완제품을 사서 납품하는 경우</h3>
+<p>제품 개수 흐름은 작업지시의 <strong>완제품 매입·납품 라우팅</strong>에서 입고·검사·포장·출고 실적으로 관리합니다. 현재 구매·입고 화면은 <strong>원재료 kg 입고 전용</strong>이므로, 완제품 구매금액·발주·매입채무를 기록하는 기능과는 구분합니다.</p>
+<div class="footer"><span>주문 예정량이 아니라 실제 입고한 kg을 입력합니다.</span><span>08 / 11</span></div>
+</section>
+
+<section class="sheet" id="inventory">
+<p class="kicker">INVENTORY</p><h2>재고 숫자 읽는 법</h2>
+<h3>원재료 재고 · kg</h3>
+<div class="box formula">현재고 = 구매 입고 + 기초조정 − 작업지시 투입</div>
+<p>입고가 100kg이고 투입이 25kg이면 현재고는 75kg입니다. 입고를 90kg으로 수정하면 65kg으로 바뀝니다. 숫자를 별도로 덮어쓰지 않고 현재 원본 기록을 다시 합산합니다.</p>
+<h3>처음 도입할 때 기초재고 확인</h3>
+<ol><li>기존 입고·투입 자료의 중복이나 누락을 먼저 확인하고, 실제 남아 있는 kg을 실사합니다.</li><li><strong>재고 현황 → 원재료 재고 → 기초재고 확인</strong>을 누릅니다.</li><li><strong>실제 보유 수량 (kg)</strong>과 실사 메모를 입력하고 <strong>기초재고 반영</strong>을 누릅니다. 입력값은 조정량이 아니라 현재 실제 보유량입니다.</li><li>저장 뒤 현재고가 실사 수량과 맞는지 확인합니다. 입력 중 입고·투입이 바뀌었다면 창을 닫고 최신 값으로 다시 확인합니다.</li></ol>
+<p class="muted">예: 구매 0kg, 기존 투입 25kg, 실제 보유 100kg이면 기초조정은 +125kg입니다. 기존 기초조정을 다시 확인하면 대체되며 중복 추가하지 않습니다. 조정량은 음수나 0도 가능하고, 기초 미확인 표시는 실사를 확인하지 않았다는 뜻입니다.</p>
+<h3>완제품 재고 · 개</h3>
+<table><thead><tr><th>화면 항목</th><th>뜻과 예시</th></tr></thead><tbody>
+<tr><td>생산 완료</td><td>출고 직전 공정까지 완료한 양품. 예: 30개</td></tr>
+<tr><td>누적 출고</td><td>마지막 출고 공정에서 기록한 수량. 예: 17개</td></tr>
+<tr><td>출고 전 잔량</td><td>30 − 17 = <strong>13개</strong></td></tr>
+<tr><td>출고 단계 폐기</td><td>출고 단계에서 확정한 폐기. 예: 2개</td></tr>
+<tr><td>실보유 재고</td><td>13 − 폐기 2 = <strong>11개</strong></td></tr>
+<tr><td>불량 보류 / 출고 가능</td><td>보류 3개라면 출고 가능 = 11 − 3 = <strong>8개</strong></td></tr>
+</tbody></table>
+<div class="notice"><strong>수주 출고 잔량과 창고 재고는 다릅니다.</strong><p>목표 100개 중 17개를 출고하면 납품할 잔량은 83개입니다. 위 예시의 실제 보유 재고는 11개이며, 아직 생산하지 않은 물량은 창고 재고로 잡지 않습니다.</p></div>
+<p class="muted">수량 미확인 작업이나 출고 공정만 있는 작업은 완제품 재고를 확정할 근거가 부족해 별도 표시합니다. 그때 표시된 숫자는 확인된 작업의 소계입니다. 앞 공정의 불량은 양품 완료 수량에 이미 반영되므로 다시 차감하지 않습니다.</p>
+<div class="footer"><span>작업지시별 재고 확인을 펼쳐 품목 합계의 근거를 확인하세요.</span><span>09 / 11</span></div>
+</section>
+
+<section class="sheet" id="corrections">
+<p class="kicker">CORRECTIONS &amp; MOVEMENT HISTORY</p><h2>수정·취소와 수불 이력</h2>
+<table><thead><tr><th>잘못 입력한 내용</th><th>정정하는 곳</th></tr></thead><tbody>
+<tr><td>정상 공정·출고 수량</td><td>현장 스캔 → 최근 처리 이력 → <strong>기록 취소</strong>. 실제 수량으로 다시 기록</td></tr>
+<tr><td>불량 등록</td><td>해당 보류 건 → 이 불량 처리 → <strong>불량 등록 취소 (입력 정정)</strong></td></tr>
+<tr><td>불량 처리 방법·수량</td><td>최근 불량 처리 이력 → <strong>불량 처리 취소</strong></td></tr>
+<tr><td>원재료 투입 kg</td><td>작업지시 관리 → 수정 / 삭제 → 해당 자재 행 수정 또는 제거 → 저장</td></tr>
+<tr><td>구매 입고</td><td>구매·입고 → <strong>입고 수정</strong> 또는 <strong>취소 / 삭제</strong></td></tr>
+<tr><td>수주 내용</td><td>수주 관리 → <strong>수주 수정</strong>. 연결 작업의 거래처·품목과 발행 수량 제한 확인</td></tr>
+</tbody></table>
+<h3>뒤 공정이 사용한 실적은 앞 공정부터 지울 수 없습니다</h3>
+<p>앞 공정 완료 20개를 근거로 뒤 공정 20개가 이미 기록되었다면, 앞 공정 기록만 먼저 취소하면 공정 수량이 맞지 않습니다. 잘못 입력한 후속 기록부터 확인하고 역순으로 정정합니다. 실제 작업·납품이 있었던 기록을 단순히 숫자를 맞추려고 취소하지 마세요.</p>
+<div class="notice"><strong>작업지시 삭제는 실적 취소보다 범위가 큽니다.</strong><p>지시서를 삭제하면 연결 자재 투입·공정·불량 기록이 삭제되고 현재 재고와 수주 출하 집계에서도 제외됩니다. 삭제 전후의 재고 정정 이력은 수불 원장에 남습니다. 실제 작업·출고가 있었던 지시는 보관하고 잘못 입력한 개별 기록을 정정하는 것이 기본입니다.</p></div>
+<h3>재고가 왜 바뀌었는지 확인하는 방법</h3>
+<ol><li><strong>재고 현황</strong>에서 원재료 또는 완제품의 <strong>수불 이력</strong>을 누릅니다.</li><li>필요하면 조회 시작일·종료일을 지정합니다. 거래일 기준 한국시간으로 조회합니다.</li><li>재고 증감, 보류 증감, 작업지시와 <strong>변경 내용</strong>을 확인합니다. 입고·투입 정정에는 원래 거래 일시와 정정을 기록한 일시가 따로 있습니다.</li><li>화면은 100건씩 표시합니다. 새 기록을 보려면 <strong>최신 이력 조회</strong>, 전체 자료는 <strong>조회 조건 전체 엑셀</strong>을 사용합니다.</li></ol>
+<h3>이력의 + / − 읽기</h3>
+<p><strong>재고 +</strong>는 입고·생산 또는 잘못 차감한 기록의 복원입니다. <strong>재고 −</strong>는 투입·출고·폐기 또는 잘못 증가한 기록의 정정입니다. 보류 증감은 별도 열이며, 보류가 늘었다고 실보유가 반드시 감소하는 것은 아닙니다.</p>
+<p class="muted">설정 당시 남아 있던 이력은 가져오지만, 도입 전에 이미 삭제된 자료와 당시 변경 전 내용까지 복원하지는 않습니다.</p>
+<div class="footer"><span>현재고와 이력을 함께 확인하고, 원래 입력에서 정정합니다.</span><span>10 / 11</span></div>
+</section>
+
+<section class="sheet" id="exports">
+<p class="kicker">EXPORTS &amp; DAILY CHECK</p><h2>엑셀·문제 해결·일일 점검</h2>
+<h3>업무별 엑셀 자료받기</h3>
+<table><thead><tr><th>필요한 자료</th><th>받는 위치·범위</th></tr></thead><tbody>
+<tr><td>생산·출고·자재·불량</td><td>생산 현황 / 작업지시 관리 → 엑셀 자료받기. 현재 결과 또는 전체 작업을 선택. 기간은 이력에 적용하고 현황 수량은 누적 기준</td></tr>
+<tr><td>수주 / 구매·입고</td><td>각 메뉴의 엑셀 자료받기. 현재 검색·상태 필터 결과</td></tr>
+<tr><td>원재료 / 완제품 재고</td><td>재고 현황의 선택 탭 → 엑셀 자료받기. 검색된 품목의 현재 수량</td></tr>
+<tr><td>수불 상세 / 기초정보</td><td>수불의 조회 조건 전체 엑셀 / 각 등록 메뉴의 엑셀 자료받기</td></tr>
+</tbody></table>
+<h3>자주 만나는 상황</h3>
+<table><thead><tr><th>상황</th><th>확인할 내용</th></tr></thead><tbody>
+<tr><td>QR을 찍으면 글자만 보임</td><td>예전 번호형 QR일 수 있습니다. 새 지시서를 인쇄하면 주소형 QR이 생성됩니다. 기존 코드는 현장 스캔 입력칸에서 조회할 수 있습니다.</td></tr>
+<tr><td>공정 선택이 안 보임</td><td>상단에서 작업지시를 먼저 조회합니다. 성공한 작업의 공정만 표시합니다.</td></tr>
+<tr><td>저장 버튼이 비활성</td><td>지시서·공정 선택, 수량 입력, 처리 가능 수량, 기존 수량 확인 및 연결 오류 안내를 확인합니다.</td></tr>
+<tr><td>저장 결과 확인 필요</td><td>스캔은 같은 기록 확인 / 재시도, 수주·구매·기초재고는 저장 결과 확인 / 재시도. 새 요청을 중복 등록하지 않습니다.</td></tr>
+<tr><td>다른 사용자가 수정함</td><td>오래된 창의 저장을 막은 것입니다. 최신 목록을 조회하고 편집창을 다시 열어 확인합니다.</td></tr>
+<tr><td>원재료 재고가 음수</td><td>미등록 입고, 중복 투입, 잘못된 코드·kg, 기초재고를 점검합니다. 숫자를 맞추기 위해 실제와 다른 구매를 등록하지 않습니다.</td></tr>
+<tr><td>도메인을 변경함</td><td>기존 QR은 이전 주소를 담고 있습니다. 이전 주소의 연결을 유지하거나 새 주소로 지시서를 재인쇄해야 합니다.</td></tr>
+</tbody></table>
+<h3>하루 마감 시 확인할 것</h3>
+<p class="check">① 누락된 공정 완료·출고 기록　② 남은 불량 보류<br>③ 실제 투입 kg와 구매 입고　④ 음수·미확인 재고<br>⑤ 수주 출고 잔량과 납기　⑥ 필요한 엑셀 자료 저장</p>
+<p class="muted">현황·수주·구매·재고는 약 5초마다 갱신됩니다. 현장 스캔은 다른 작업자의 입력이 있으면 다시 조회해 최신 수량을 확인하세요. DB 설정 안내가 나타나면 운영 담당자에게 알려주세요. 일반 사용 중에는 SQL을 반복 실행할 필요가 없습니다.</p>
+<div class="footer"><span><a href="https://test-ict.pages.dev/">test-ict.pages.dev</a> · 문의 시 지시번호·공정·입력값·오류 문구 전달</span><span>11 / 11</span></div>
+</section>
+</body>
+</html>
