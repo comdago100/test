@@ -35,3 +35,19 @@ button:disabled{cursor:not-allowed;opacity:.55}.progress-segment{overflow:hidden
 .routing-flow li{padding:8px 12px;background:#f0f5f0;border-radius:8px;font-size:13px}
 .stage-quantities{grid-template-columns:repeat(auto-fit,minmax(100px,1fr))}.print-stages{grid-template-columns:repeat(3,1fr)}
 @media(max-width:700px){.routing-card{padding:16px}.routing-step{grid-template-columns:24px minmax(0,1fr) minmax(0,1fr)}.routing-step label:nth-of-type(3){grid-column:2}.routing-step-actions{grid-column:3}.routing-actions button{min-height:42px}}
+.quality-panel{margin-top:26px;border-top:1px solid var(--line);padding-top:20px}
+.quality-panel h3{margin:0;font-size:16px}.quality-panel h4{font-size:13px}
+.quality-panel p{font-size:12px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
+.quality-summary{display:flex;gap:10px 22px;flex-wrap:wrap;border:1px solid #edd5b3;border-radius:8px;padding:12px;background:#fff8ec;color:#805526;font-size:12px;margin:12px 0}
+.quality-summary strong{margin-left:5px}.quality-summary a{font-weight:700;text-decoration:underline}
+.quality-register,.quality-history{border:1px solid #e0e6dd;border-radius:8px;margin:14px 0;padding:14px}
+.quality-register summary,.quality-history summary{cursor:pointer;font-size:13px;font-weight:700;min-height:26px}
+.quality-register form{margin-top:12px}.quality-panel .form-grid{border:0;padding:0;margin:12px 0}
+.quality-help{color:#68776d;margin:12px 0}.quality-panel select{border:1px solid #dce4db;border-radius:8px;padding:9px;background:#fff;max-width:100%}
+.quality-cases,.quality-history ul{list-style:none;padding:0;margin:10px 0}
+.quality-cases>li{padding:16px 12px;margin-bottom:12px;border:1px solid #e5dfd2;border-radius:8px;background:#fffdfa}
+.quality-cases strong{font-size:13px}.quality-panel .section-row{gap:12px;flex-wrap:wrap}
+.quality-resolution{border-top:1px solid #e5dfd2;margin-top:12px;padding-top:8px}.quality-actions{display:flex;gap:8px;justify-content:flex-end}
+.quality-history li{padding:12px 0;border-bottom:1px solid var(--line);display:flex;gap:10px;justify-content:space-between;align-items:center}
+.quality-history strong,.quality-history span{display:block;font-size:12px}.quality-history span{font-size:11px;color:#78857a;margin-top:5px}
+@media(max-width:550px){.quality-panel .form-grid{grid-template-columns:1fr}.quality-cases .secondary-btn,.quality-history button{min-height:42px}.quality-summary{gap:8px 14px}}

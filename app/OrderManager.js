@@ -72,7 +72,7 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
     await onSaved(); close();
   }
   async function remove() {
-    if (!window.confirm(`[${order.wo_id}] 작업지시와 연결된 자재 투입 내역 및 공정 처리 이력을 영구 삭제합니다. 계속하시겠습니까?`)) return;
+    if (!window.confirm(`[${order.wo_id}] 작업지시와 연결된 자재 투입 내역 및 공정·불량 처리 이력을 영구 삭제합니다. 계속하시겠습니까?`)) return;
     setBusy(true);setError("");
     const {error} = await supabase.rpc("delete_production_order", {p_wo_id:order.wo_id});
     setBusy(false);

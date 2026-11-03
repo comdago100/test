@@ -2,13 +2,14 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AppNav from "../AppNav";
+import QualityPanel from "../QualityPanel";
 import { ArrowLeft, Camera, CheckCircle2, Factory, Keyboard, ScanLine, XCircle } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { getProgress, getOrderSteps, steps as legacySteps, validateOpening, validateQuantity } from "../../lib/workflow";
 import { parseOrderCode } from "../../lib/order-code";
 
 function message(error) {
-  if (["PGRST202", "PGRST204", "42P01", "42703"].includes(error?.code)) return "수량 관리 DB 설정이 필요합니다. partial_production.sql을 적용해 주세요.";
+  if (["PGRST202", "PGRST204", "42P01", "42703"].includes(error?.code)) return "DB 설정이 필요합니다. WEB_SETUP.md의 적용 순서를 확인하고 불량 관리는 quality_management.sql을 마지막으로 적용하세요.";
   return error?.message || "연결 상태를 확인해 주세요.";
 }
 
@@ -67,7 +68,7 @@ export default function Scanner() {
     mountedRef.current = true;
     try {
       const saved = JSON.parse(sessionStorage.getItem("foundry.pendingProgress") || "null");
-      if (saved && ["record_production_progress", "initialize_production_quantities", "reverse_production_progress"].includes(saved.rpc) && saved.args?.p_request_id) {
+      if (saved && ["record_production_progress", "initialize_production_quantities", "reverse_production_progress", "record_production_defect", "resolve_production_defect", "reverse_production_quality"].includes(saved.rpc) && saved.args?.p_request_id) {
         pendingRef.current = saved; setPending(saved);
       }
     } catch {}
@@ -144,6 +145,7 @@ export default function Scanner() {
       setResult({ ok: true, title: request.title, detail: `${data.wo_id} · 누적 출고 ${getProgress(data).shipped.toLocaleString()}개 / 잔량 ${getProgress(data).remaining.toLocaleString()}개` });
       await loadHistory(data.wo_id);
       quantityRef.current?.focus();
+      return true;
     } catch (error) {
       // Database errors are definitive rollbacks. Transport errors may have committed:
       // preserve the exact request and UUID until the server confirms the result.
@@ -159,6 +161,7 @@ export default function Scanner() {
       }
       setResult({ ok: false, title: pendingRef.current ? "저장 결과를 확인해야 합니다" : "처리하지 못했습니다",
         detail: pendingRef.current ? "연결을 확인한 뒤 아래 재시도 버튼을 누르세요. 같은 기록이 중복 저장되지 않습니다." : message(error) });
+      return false;
     } finally { setBusy(false); busyRef.current = false; }
   }
   function record(event) {
@@ -229,15 +232,18 @@ export default function Scanner() {
             <button className="primary-btn record-btn" disabled={locked}>기존 수량 확인 및 시작</button>
           </form> : <>
             <div className="shipment-summary"><span>누적 출고 <strong>{progress.shipped.toLocaleString()}개</strong></span><span>출고 잔량 <strong>{progress.remaining.toLocaleString()}개</strong></span></div>
-            <div className="stage-quantities">{steps.map((step,i)=><div key={step.name}><span>{step.name} 완료</span><strong>{progress.completed[i].toLocaleString()}<small> / {progress.target.toLocaleString()}</small></strong></div>)}</div>
+            {(progress.heldTotal>0||progress.scrapTotal>0)&&<div className="quality-summary"><span>불량 보류 <strong>{progress.heldTotal.toLocaleString()}개</strong></span><span>확정 폐기 <strong>{progress.scrapTotal.toLocaleString()}개</strong></span><span>보충 포함 첫 공정 한도 <strong>{progress.productionAllowance.toLocaleString()}개</strong></span></div>}
+            <div className="stage-quantities">{steps.map((step,i)=><div key={step.name}><span>{step.name} 완료</span><strong>{progress.completed[i].toLocaleString()}<small> / {progress.target.toLocaleString()}</small></strong>{(progress.held[i]>0||progress.scrapped[i]>0)&&<small>보류 {progress.held[i].toLocaleString()} · 폐기 {progress.scrapped[i].toLocaleString()}</small>}</div>)}</div>
             <div className="panel-divider"/>
             <div className="panel-title"><div><span className="step-number">03</span><div><h2>{steps[selected].name} 수량 기록</h2><p>이번 처리 수량이 기존 실적에 추가됩니다.</p></div></div></div>
-            <p className="available-quantity">현재 처리 가능 <strong>{progress.available[selected].toLocaleString()}개</strong> · {selected === 0 ? `목표 수량 중 ${steps[selected].name} 미처리 수량` : `${steps[selected-1].name} 완료 수량 중 ${steps[selected].name} 미처리 수량`}</p>
+            <p className="available-quantity">현재 처리 가능 <strong>{progress.available[selected].toLocaleString()}개</strong> · {selected === 0 ? `${progress.scrapTotal>0?"폐기 보충분을 포함한":"목표"} 수량 중 ${steps[selected].name} 미처리 수량` : `${steps[selected-1].name} 완료 수량 중 ${steps[selected].name} 미처리 수량`}</p>
             <form onSubmit={record}>
+              <p className="quality-help">불량을 제외한 양품 수량만 입력하세요. 불량은 아래 불량 관리에서 별도로 등록합니다.</p>
               <label className="full-label">이번 처리 수량 (개)<input ref={quantityRef} type="number" min="1" max={progress.available[selected]} step="1" required disabled={locked || camera || progress.available[selected] === 0} value={quantity} onChange={e=>setQuantity(e.target.value)} placeholder="실제로 처리한 수량을 입력하세요"/></label>
               <label className="full-label">메모 (선택)<input value={note} disabled={locked || camera} maxLength={500} onChange={e=>setNote(e.target.value)} placeholder="출고처, 생산 회차, 특이사항 등"/></label>
               <button className="primary-btn record-btn" disabled={locked || camera || progress.available[selected] === 0 || !quantity}>{steps[selected].name} 수량 기록</button>
             </form>
+            <QualityPanel key={order.wo_id} order={order} selected={selected} locked={locked||camera} onSave={save}/>
           </>}
           <div className="process-history"><h3>최근 처리 이력</h3>{historyError ? <p role="alert">{historyError}</p> : !history.length ? <p>처리 기록이 없습니다.</p> : <ul>{history.map(event=><li key={event.event_id}><div><strong>{steps[event.step].name} {event.quantity > 0 ? "+" : ""}{event.quantity.toLocaleString()}개</strong><span>{new Date(event.created_at).toLocaleString("ko-KR")} · {event.kind === "opening" ? "기존 수량 확인" : event.kind === "reversal" ? "취소" : reversed.has(event.event_id) ? "취소된 기록" : "완료"}</span>{event.note && <span>{event.note}</span>}</div>{event.kind === "completion" && !reversed.has(event.event_id) && <button className="edit-btn" disabled={locked || camera} onClick={()=>reverse(event)}>기록 취소</button>}</li>)}</ul>}</div>
         </section>}
