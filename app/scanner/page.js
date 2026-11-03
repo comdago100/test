@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AppNav from "../AppNav";
 import QualityPanel from "../QualityPanel";
+import WorkflowLinks from "../WorkflowLinks";
 import { ArrowLeft, Camera, CheckCircle2, Factory, Keyboard, ScanLine, XCircle } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { getProgress, getOrderSteps, steps as legacySteps, validateOpening, validateQuantity } from "../../lib/workflow";
@@ -222,6 +223,7 @@ export default function Scanner() {
         <div className="scan-area"><div className="scan-icon"><ScanLine size={32}/></div><strong>작업지시서 QR / 바코드</strong><p>휴대폰에서는 카메라로 조회할 수 있습니다.</p>
           {camera ? <><div id="camera-reader"/><button type="button" className="secondary-btn" onClick={stopCamera}>카메라 닫기</button></> : <button className="primary-btn camera-btn" disabled={locked} type="button" onClick={startCamera}><Camera size={18}/> 카메라로 스캔</button>}
         </div>
+        {order && <WorkflowLinks order={order} active="scanner"/>}
         {order && <section className="scan-order">
           <div className="section-row"><div><h2>{order.wo_id}</h2><p>{order.routing_name || "기존 6공정"} · {order.item_code} · 목표 {progress.target.toLocaleString()}개</p></div><span className="selected-label">{progress.needsOpening ? "기존 수량 확인 필요" : order.current_step}</span></div>
           <div className="panel-title"><div><span className="step-number">02</span><div><h2>공정 선택</h2><p>조회한 작업의 라우팅에서 이번에 완료한 공정을 선택하세요.</p></div></div><span className="selected-label">{steps[selected].place}</span></div>

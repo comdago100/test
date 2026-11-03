@@ -8,6 +8,7 @@ import {detailsText} from '../lib/product-details';
 import { Activity, ArrowRight, Boxes, CheckCircle2, Clock3, Download, Factory, Layers3, RefreshCw, ScanLine, Search, Plus } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import OrderManager from "./OrderManager";
+import WorkflowLinks from "./WorkflowLinks";
 import OrderPrint from "./OrderPrint";
 import ProductionExport from "./ProductionExport";
 import { isOverdue } from "../lib/order-utils";
@@ -79,7 +80,7 @@ export default function Dashboard({ manage = false }) {
     <div className="content">
       <div className="eyebrow"><span className="orange-dot"/> {manage ? "WORK ORDER MANAGEMENT" : "PRODUCTION OVERVIEW"}</div>
       <section className="intro">
-        <div><h1>{manage ? "작업지시 관리" : "생산 현황"}</h1><p>{manage ? "작업지시와 원재료 투입 내역을 등록하고 관리합니다." : "현장의 공정 흐름을 한눈에 확인하세요."}</p></div>
+        <div><h1>{manage ? "작업지시 관리" : "생산 현황"}</h1><p>{manage ? "수주에서 발행한 작업지시의 공정·자재 투입·성적서를 관리합니다." : "현장의 공정 흐름을 한눈에 확인하세요."}</p></div>
         <div className="intro-actions"><span className="last-update"><Clock3 size={15}/> {updated ? `마지막 갱신 ${updated.toLocaleTimeString("ko-KR")}` : "연결 대기 중"} · 5초마다 갱신</span><button className="icon-btn" onClick={refresh} aria-label="새로고침"><RefreshCw size={18}/></button><Link className="primary-btn" href="/scanner/"><ScanLine size={18}/> 현장 스캔 <ArrowRight size={16}/></Link></div>
       </section>
       {error && <div className="alert" role="alert">{error}</div>}
@@ -88,7 +89,7 @@ export default function Dashboard({ manage = false }) {
         {[["전체 작업지시", orders.length, "등록된 작업", <Layers3 key="a"/>], ["진행 중", progress, "공정 진행 중", <Activity key="b"/>], ["작업 대기", waiting, "공정 시작 전", <Clock3 key="c"/>], ["출고 완료", complete, "최종 공정 완료", <CheckCircle2 key="d"/>]].map(([title, count, sub, icon], idx) => <div className="stat" key={title}><div className="stat-top"><span>{title}</span><span className={`stat-icon icon-${idx}`}>{icon}</span></div><div className="stat-number">{count}<small>건</small></div><div className="stat-sub">{sub}</div></div>)}
       </section>
       <section className="board">
-        <div className="board-heading"><div><span className="section-kicker">WORK ORDERS</span><h2>작업지시 현황 <span>{filtered.length}</span></h2><p>공정별 수량과 출고 잔량을 확인합니다. 공정 필터는 해당 공정을 처리할 수 있는 작업을 표시합니다.</p></div><div className="board-actions"><div className="search"><Search size={18}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="지시번호, 거래처, 품목 검색" aria-label="작업지시 검색"/></div><button type="button" className="secondary-btn export-btn" disabled={loading || Boolean(error) || !orders.length} onClick={() => setExportData({orders, currentOrders:filtered, clients, items, materials, usage, updated, query, filter})}><Download size={16}/> 엑셀 자료받기</button>{manage && <button className="primary-btn" onClick={() => setEditor({mode:"create", order:null, usage:[]})}><Plus size={17}/> 작업지시 등록</button>}</div></div>
+        <div className="board-heading"><div><span className="section-kicker">WORK ORDERS</span><h2>작업지시 현황 <span>{filtered.length}</span></h2><p>공정별 수량과 출고 잔량을 확인합니다. 공정 필터는 해당 공정을 처리할 수 있는 작업을 표시합니다.</p></div><div className="board-actions"><div className="search"><Search size={18}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="지시번호, 거래처, 품목 검색" aria-label="작업지시 검색"/></div><button type="button" className="secondary-btn export-btn" disabled={loading || Boolean(error) || !orders.length} onClick={() => setExportData({orders, currentOrders:filtered, clients, items, materials, usage, updated, query, filter})}><Download size={16}/> 엑셀 자료받기</button>{manage && <Link className="primary-btn" href="/sales/"><Plus size={17}/> 수주에서 작업지시 생성</Link>}</div></div>
         <div className="filters">{["전체", "대기", ...new Set(orders.flatMap(o=>getOrderSteps(o).map(s=>s.name))), "출고 완료", "수량 확인", "불량 보류", "폐기 발생"].map(f => <button key={f} className={filter === f ? "filter active" : "filter"} onClick={() => setFilter(f)}>{f}</button>)}</div>
         <Pagination pager={pager}/><div className="table-head"><span>작업지시 / 거래처</span><span>생산 품목</span><span>공정 진행</span><span>목표 수량</span><span>발행일</span></div>
         {loading ? <div className="empty">작업지시를 불러오는 중입니다.</div> : !filtered.length ? <div className="empty"><Boxes size={26}/><strong>표시할 작업지시가 없습니다</strong><span>검색 조건이나 연결 설정을 확인해 주세요.</span></div> : pager.rows.map(o => {
@@ -96,7 +97,7 @@ export default function Dashboard({ manage = false }) {
           return <article className="order" key={o.wo_id}>
             <div className="order-grid">
               <div className="order-id"><strong>{o.wo_id}</strong>{isOverdue(o) && <span className="overdue-badge">납기 지연</span>}<span>{clientNames[o.client_code] || o.client_code || "거래처 미등록"}</span></div>
-              <div className="item-name"><strong>{itemNames[o.item_code] || o.item_code || "품목 미등록"}</strong><span>{o.item_code}</span></div>
+              <div className="item-name"><strong>{o.product_details?.item_name || itemNames[o.item_code] || o.item_code || "품목 미등록"}</strong><span>{o.item_code}</span></div>
               <div className="progress-cell"><div className="progress-track">{p.steps.map((s, i) => <div key={s.name} className="progress-segment" title={`${s.name} ${p.completed[i]} / ${p.target}개`}><div className="progress-fill" style={{width: `${p.target > 0 ? Math.min(100, p.completed[i] / p.target * 100) : 0}%`}}/></div>)}</div><span>{p.needsOpening ? "기존 수량 확인 필요" : o.current_step || "발행대기"}</span></div>
               <div className="quantity"><span className="mobile-label">목표 수량 </span>{Number(o.target_qty || 0).toLocaleString()} <small>개</small></div>
               <div className="date"><span className="mobile-label">발행 </span>{dateText(o.created_at)}</div>
@@ -105,8 +106,7 @@ export default function Dashboard({ manage = false }) {
             {(p.heldTotal>0||p.scrapTotal>0)&&<div className="quality-summary compact"><span>불량 보류 <strong>{p.heldTotal.toLocaleString()}개</strong></span><span>확정 폐기 <strong>{p.scrapTotal.toLocaleString()}개</strong></span><Link href={`/scanner/?wo_id=${encodeURIComponent(o.wo_id)}`}>불량 확인 / 처리</Link></div>}
             <div className="order-details"><span>라우팅<strong>{o.routing_name || "기존 6공정"}</strong></span>{o.start_date && <span>작업 시작<strong>{dateText(o.start_date)}</strong></span>}{o.due_date && <span>납기<strong>{dateText(o.due_date)}</strong></span>}{o.actual_qty != null && <span>실제 생산<strong>{Number(o.actual_qty).toLocaleString()} 개</strong></span>}{o.unit_weight_kg != null && <span>단중<strong>{Number(o.unit_weight_kg).toLocaleString()} kg</strong></span>}{o.heat_no && <span>용해 번호<strong>{o.heat_no}</strong></span>}{o.casting_material && <span>재질<strong>{o.casting_material}</strong></span>}{manage && <button className="edit-btn" onClick={() => setEditor({mode:"edit",order:{...o},usage:(usageByOrder[o.wo_id] || []).map(x=>({...x}))})}>수정 / 삭제</button>}{manage && <button className="edit-btn" onClick={() => setPrintOrder(o)}>지시서 / QR 인쇄</button>}</div><div className="material-line"><Boxes size={14}/><span>자재 투입</span>{usageByOrder[o.wo_id]?.length ? usageByOrder[o.wo_id].map((u, i) => <span className="material-chip" key={u.usage_id || i}>{materialNames[u.raw_code] || u.raw_code} {Number(u.input_qty).toLocaleString()} kg</span>) : <span className="muted">기록 없음</span>}</div>
             {o.notes && <p className="order-note">메모 · {o.notes}</p>}
-            <ProductSummary value={o.product_details}/>{manage&&<div className="erp-actions"><Link className="edit-btn" href={`/inspections/?wo_id=${encodeURIComponent(o.wo_id)}`}>검사성적서</Link></div>}
-            {o.order_id&&<div className="erp-actions"><Link className="edit-btn" href={`/sales/?order_id=${encodeURIComponent(o.order_id)}`}>연결 수주 보기</Link></div>}
+            <ProductSummary value={o.product_details}/><WorkflowLinks order={o} active="orders"/>
           </article>;
         })}<Pagination pager={pager} compact/>
       </section>

@@ -100,19 +100,16 @@ test("purchase routing drives scanner quantities, shipment history and printed s
   expect(shipped[1][shipped[0].indexOf("처리 수량(개)")]).toBe(7);
 });
 
-test("a new work order chooses a routing and excludes inactive clients",async({page})=>{
-  const state=await backend(page);state.clients.push({client_code:"STOP",client_name:"거래중지",is_active:false});
-  await page.goto("/orders/");await page.getByRole("button",{name:"작업지시 등록",exact:true}).click();
-  const dialog=page.getByRole("dialog");await expect(dialog.getByLabel("라우팅",{exact:true})).toHaveValue("TRADE");
-  await expect(dialog.getByLabel("거래처",{exact:true}).locator("option[value=STOP]")).toHaveCount(0);
-  await dialog.getByLabel("작업지시 번호 *",{exact:true}).fill("NEW");
-  await dialog.getByLabel("거래처",{exact:true}).selectOption("C");
-  await dialog.getByLabel("품목",{exact:true}).selectOption("I");
-  await dialog.getByLabel("목표 수량 (개) *",{exact:true}).fill("100");
-  await dialog.getByRole("button",{name:"작업지시 저장",exact:true}).click();
-  await expect(dialog).toHaveCount(0);
-  expect(state.calls[0].rpc).toBe("save_routed_production_order");
-  expect(state.calls[0].args.p_order.routing_code).toBe("TRADE");
+test("work orders start from sales and legacy orders retain their routing",async({page})=>{
+  const state=await backend(page);await page.goto("/orders/");
+  await expect(page.getByRole("button",{name:"작업지시 등록",exact:true})).toHaveCount(0);
+  await expect(page.getByRole("link",{name:"수주에서 작업지시 생성",exact:true})).toHaveAttribute("href","/sales/");
+  await page.getByRole("button",{name:"수정 / 삭제",exact:true}).click();
+  const dialog=page.getByRole("dialog");
+  await expect(dialog.getByLabel("라우팅",{exact:false})).toHaveValue("완제품 매입·납품");
+  await expect(dialog.getByLabel("거래처",{exact:true})).toBeDisabled();
+  await expect(dialog.getByLabel("품목",{exact:true})).toBeDisabled();
+  expect(state.calls).toHaveLength(0);
 });
 
 test("client optional profiles create and edit with precise concurrency token and search",async({page},testInfo)=>{

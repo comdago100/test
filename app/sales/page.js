@@ -3,6 +3,7 @@ import {useEffect,useState} from "react";
 import Link from "next/link";
 import ErpShell,{useErpData,useErpMutation} from "../ErpShared";
 import OrderManager from "../OrderManager";
+import WorkflowLinks from "../WorkflowLinks";
 import {qty,money} from "../../lib/erp-data";
 import {dateText} from "../../lib/workflow";
 import {erpSheets} from "../../lib/erp-export";
@@ -35,7 +36,7 @@ export default function Sales(){
   const result=await mutation.run("delete_sales_order",{p_order_id:row.order_id,p_expected_revision:row.revision});if(result&&editing?.order_id===row.order_id)reset();
  }
  async function download(){if(exporting)return;setExporting(true);setError("");try{await downloadWorkbook(erpSheets("sales",filtered,{clients:names,items:itemNames}),exportFilename("수주현황"));}catch(e){setError(e.message);}finally{setExporting(false);}}
- return <ErpShell title="수주 관리" kicker="SALES ORDERS" description="수주를 등록하고 기존 작업지시의 진행·출고 수량을 함께 확인합니다." state={state} mutation={mutation}>
+ return <ErpShell title="수주 관리" kicker="SALES ORDERS" description="PO·제품정보를 수주에 등록하고 작업지시·공정처리·검사성적서로 연결합니다." state={state} mutation={mutation}>
   <section className="erp-card"><h2>{editing?"수주 수정":"수주 등록"}</h2><form onSubmit={save}><fieldset className="form-grid" disabled={disabled}>
    <label>수주번호 *<input required maxLength={80} value={form.order_no} onChange={e=>change("order_no",e.target.value)} placeholder="예: SO-20261103-001"/></label>
    <label>매출처 *<select aria-label="매출처" required disabled={Boolean(editing?.work_order_count>0)} value={form.client_code} onChange={e=>change("client_code",e.target.value)}><option value="">선택하세요</option>{clients.filter(c=>c.is_active!==false&&["customer","both"].includes(c.client_type||"customer")||c.client_code===editing?.client_code).map(c=><option key={c.client_code} value={c.client_code}>{c.client_name} ({c.client_code})</option>)}</select></label>
@@ -52,7 +53,7 @@ export default function Sales(){
     <div className="section-row"><div><h3>{row.order_no}</h3><p>{names[row.client_code]||row.client_code} · {itemNames[row.item_code]||row.item_code}</p></div><span className="selected-label">{row.status}</span></div>
     <div className="erp-metrics">{[["수주",qty(row.quantity)+"개"],["작업지시",qty(row.allocated_qty)+"개"],["미지시",qty(row.unallocated_qty)+"개"],["누적 출고",Number(row.unconfirmed_count)>0?"확인 필요":qty(row.shipped_qty)+"개"],["출고 잔량",Number(row.unconfirmed_count)>0?"확인 필요":qty(row.remaining_qty)+"개"]].map(([label,value])=><div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
     <ProductSummary value={row.product_details}/><p className="erp-record-meta">납기 {dateText(row.due_date)} · 단가 {money(row.unit_price)} · 총액 {money(row.amount)} · 연결 작업지시 {qty(row.work_order_count)}건</p>{row.notes&&<p>{row.notes}</p>}
-    {row.work_orders?.length>0&&<details className="erp-work-breakdown"><summary>연결 작업의 공정 상태</summary>{row.work_orders.map(w=><div key={w.wo_id}><Link href={`/orders/?wo_id=${encodeURIComponent(w.wo_id)}`}>{w.wo_id}</Link><span>{w.quantity_confirmed?w.current_step||"발행대기":"수량 확인 필요"}</span><span>목표 {qty(w.target_qty)}개 · 출고 {w.shipped_qty==null?"확인 필요":`${qty(w.shipped_qty)}개`}</span></div>)}</details>}
+    <WorkflowLinks orderId={row.order_id} active="sales"/>{row.work_orders?.length>0&&<details className="erp-work-breakdown"><summary>연결 작업의 공정 상태</summary>{row.work_orders.map(w=><div key={w.wo_id}><Link href={`/orders/?wo_id=${encodeURIComponent(w.wo_id)}`}>{w.wo_id}</Link><span>{w.quantity_confirmed?w.current_step||"발행대기":"수량 확인 필요"}</span><span>목표 {qty(w.target_qty)}개 · 출고 {w.shipped_qty==null?"확인 필요":`${qty(w.shipped_qty)}개`}</span><Link href={`/scanner/?wo_id=${encodeURIComponent(w.wo_id)}`}>공정처리</Link><Link href={`/inspections/?wo_id=${encodeURIComponent(w.wo_id)}`}>검사성적서 작성</Link></div>)}</details>}
     <div className="erp-actions"><button type="button" className="primary-btn" disabled={disabled||Number(row.unallocated_qty)<=0} onClick={()=>setEditor({...row})}>작업지시 생성</button>{Number(row.work_order_count)>0&&<Link className="secondary-btn" href={`/orders/?order_id=${encodeURIComponent(row.order_id)}`}>연결 작업지시 보기</Link>}<button type="button" className="secondary-btn" disabled={disabled} onClick={()=>{setEditing({...row});setForm({...row,unit_price:row.unit_price??""});setError("");document.querySelector(".erp-card")?.scrollIntoView({behavior:"smooth"});}}>수주 수정</button><button type="button" className="delete-btn" disabled={disabled||Number(row.work_order_count)>0} onClick={()=>remove(row)}>삭제</button></div>
    </article>)}
   <Pagination pager={pager} compact/></section>
