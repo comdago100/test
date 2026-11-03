@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Plus, X, Trash2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { validateOrderId } from "../lib/order-utils";
+import { ErpRequestStatus } from "./ErpShared";
 
 
 const blank = () => ({ wo_id: "", client_code:"", item_code:"", target_qty:"", due_date:"", start_date:"", actual_qty:"", unit_weight_kg:"", heat_no:"", casting_material:"", notes:"", routing_code:"" });
@@ -15,7 +16,7 @@ function msg(error) {
   return text;
 }
 
-export default function OrderManager({ mode, order, usage, clients, items, materials, close, onSaved }) {
+export default function OrderManager({ mode, order, usage, clients, items, materials, close, onSaved, salesOrder=null, linkedMutation=null }) {
   const [form,setForm] = useState(null);
   const [rows,setRows] = useState([]);
   const [error,setError] = useState("");
@@ -44,13 +45,13 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
     return()=>{active=false;};
   },[mode]);
   useEffect(() => {
-    if (mode === "create") { setForm(blank()); setRows([]); }
+    if (mode === "create") { setForm({...blank(),...(salesOrder?{client_code:salesOrder.client_code,item_code:salesOrder.item_code,target_qty:String(salesOrder.unallocated_qty),due_date:salesOrder.due_date||""}:{})}); setRows([]); }
     if (mode === "edit" && order) {
       setForm(Object.fromEntries(fields.map(k => [k, order[k] ?? ""])));
       setRows(usage.map(x => ({usage_id:x.usage_id, raw_code:x.raw_code, input_qty:String(x.input_qty)})));
     }
     setError("");
-  }, [mode, order, usage]);
+  }, [mode, order, usage, salesOrder]);
 
   if (!mode) return null;
   function change(key,value) { setForm(old => ({...old,[key]:value})); }
@@ -65,6 +66,12 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
     if (form.start_date && form.due_date && form.start_date > form.due_date) return setError("납기일은 작업 시작일보다 빠를 수 없습니다.");
     if (busy || routingLoading || routingError) return;
     if (mode==="create" && routingReady && !form.routing_code) return setError("사용 가능한 라우팅을 먼저 등록하세요.");
+    if (salesOrder) {
+      if(!routingReady)return setError("라우팅 DB 설정을 먼저 적용하세요.");
+      if(Number(form.target_qty)>Number(salesOrder.unallocated_qty))return setError("미지시 수량보다 많이 발행할 수 없습니다.");
+      const result=await linkedMutation.run("create_sales_work_order",{p_order_id:salesOrder.order_id,p_expected_revision:salesOrder.revision,p_order:{...form,wo_id:form.wo_id.trim()},p_materials:rows});
+      if(result){await onSaved();close();}return;
+    }
     setBusy(true);
     const {error} = await supabase.rpc(routingReady ? "save_routed_production_order" : "save_production_order", {p_order:{...form, wo_id:form.wo_id.trim()}, p_materials:rows, p_create:mode==="create", p_original_usage_ids:usage.map(x=>String(x.usage_id))});
     setBusy(false);
@@ -83,14 +90,15 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
     <div className="modal-heading"><div><span className="section-kicker">WORK ORDER MANAGEMENT</span><h2 id="manager-title">{mode==="create"?"작업지시 등록":"작업지시 수정"}</h2><p>작업 내용과 실제 투입 자재를 관리합니다.</p></div><button className="icon-btn" onClick={close} aria-label="닫기"><X size={18}/></button></div>
     {!supabase ? <div className="alert">Supabase 연결 설정이 필요합니다.</div> : form && <form onSubmit={save}>
       <p className="registry-hint">거래처·품목·원재료는 상단의 각 등록 메뉴에서 먼저 등록한 뒤 선택하세요.</p>
+      {salesOrder&&<p className="shipment-summary">수주 {salesOrder.order_no}에서 생성합니다. 미지시 {Number(salesOrder.unallocated_qty).toLocaleString()}개 중 이번 작업 수량을 입력하세요.</p>}
       <div className="form-section"><h3>기본 정보</h3><div className="form-grid">
         <label>작업지시 번호 <em>*</em><input value={form.wo_id} onChange={e=>change("wo_id",e.target.value)} readOnly={mode==="edit"} required maxLength={80} placeholder="예: WO-20261030-001"/>{mode==="edit" && <small>등록된 번호는 자재 내역과 연결되어 변경할 수 없습니다.</small>}</label>
-        <label>거래처 <em>*</em><select aria-label="거래처" required value={form.client_code} onChange={e=>change("client_code",e.target.value)}><option value="">선택하세요</option>{clients.filter(client=>client.is_active!==false || mode==="edit" && client.client_code===order?.client_code).map(x=><option key={x.client_code} value={x.client_code}>{x.client_name} ({x.client_code})</option>)}</select></label>
-        <label>품목 <em>*</em><select aria-label="품목" required value={form.item_code} onChange={e=>change("item_code",e.target.value)}><option value="">선택하세요</option>{items.map(x=><option key={x.item_code} value={x.item_code}>{x.item_name} ({x.item_code})</option>)}</select></label>
+        <label>거래처 <em>*</em><select aria-label="거래처" required disabled={Boolean(salesOrder||order?.order_id)} value={form.client_code} onChange={e=>change("client_code",e.target.value)}><option value="">선택하세요</option>{clients.filter(client=>client.is_active!==false || mode==="edit" && client.client_code===order?.client_code).map(x=><option key={x.client_code} value={x.client_code}>{x.client_name} ({x.client_code})</option>)}</select></label>
+        <label>품목 <em>*</em><select aria-label="품목" required disabled={Boolean(salesOrder||order?.order_id)} value={form.item_code} onChange={e=>change("item_code",e.target.value)}><option value="">선택하세요</option>{items.map(x=><option key={x.item_code} value={x.item_code}>{x.item_name} ({x.item_code})</option>)}</select></label>
         <label>라우팅 {mode==="create" && <em>*</em>}{mode==="edit" ? <><input readOnly value={order.routing_name || "기존 6공정"}/><small>발행 시점의 공정과 이력을 유지합니다.</small></> : <><select aria-label="라우팅" value={form.routing_code} disabled={routingLoading || !routingReady} onChange={e=>change("routing_code",e.target.value)} required={routingReady}><option value="">{routingLoading?"불러오는 중":routingReady?"선택하세요":"기존 6공정 (DB 설정 필요)"}</option>{routes.map(r=><option key={r.routing_code} value={r.routing_code}>{r.routing_name}</option>)}</select><small>{routingError || (!routingReady && !routingLoading ? "라우팅 관리에서 DB 설정 후 새 공정을 선택할 수 있습니다." : routes.find(r=>r.routing_code===form.routing_code)?.steps.map(s=>s.name).join(" → "))}</small></>}</label>
         <label>목표 수량 (개) <em>*</em><input type="number" min="1" step="1" required value={form.target_qty} onChange={e=>change("target_qty",e.target.value)}/></label>
         <label>작업 시작일<input type="date" value={form.start_date} onChange={e=>change("start_date",e.target.value)}/></label>
-        <label>납기일<input type="date" value={form.due_date} onChange={e=>change("due_date",e.target.value)}/></label>
+        <label>납기일<input type="date" readOnly={Boolean(salesOrder)} value={form.due_date} onChange={e=>change("due_date",e.target.value)}/></label>
         <label>검사 완료 수량 (자동)<input type="number" readOnly value={form.actual_qty || 0}/><small>현장 스캐너의 검사 완료 실적에서 자동 계산합니다.</small></label>
         <label>제품 단중 (kg)<input type="number" min="0" step="0.01" value={form.unit_weight_kg} onChange={e=>change("unit_weight_kg",e.target.value)}/></label>
         <label>용해 번호 / 로트<input value={form.heat_no} onChange={e=>change("heat_no",e.target.value)} maxLength={120}/></label>
@@ -102,7 +110,8 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
         <div className="material-total">총 투입 중량 <strong>{rows.reduce((sum,x)=>sum+(Number(x.input_qty)||0),0).toLocaleString("ko-KR",{maximumFractionDigits:2})} kg</strong></div>
       </div>
       {error && <div className="alert" role="alert">{error}</div>}
-      <div className="form-actions">{mode==="edit" && <button className="delete-btn" type="button" onClick={remove} disabled={busy}><Trash2 size={16}/> 삭제</button>}<div/><button className="secondary-btn" type="button" onClick={close}>취소</button><button className="primary-btn" disabled={busy || routingLoading || Boolean(routingError)}>{busy?"저장 중...":"작업지시 저장"}</button></div>
+      {linkedMutation&&<ErpRequestStatus mutation={linkedMutation} onRetry={async()=>{if(await linkedMutation.retry()){await onSaved();close();}}}/>}
+      <div className="form-actions">{mode==="edit" && <button className="delete-btn" type="button" onClick={remove} disabled={busy}><Trash2 size={16}/> 삭제</button>}<div/><button className="secondary-btn" type="button" onClick={close}>취소</button><button className="primary-btn" disabled={busy || routingLoading || Boolean(routingError) || Boolean(linkedMutation?.busy||linkedMutation?.pending)}>{busy||linkedMutation?.busy?"저장 중...":"작업지시 저장"}</button></div>
     </form>}
   </section></div>;
 }
