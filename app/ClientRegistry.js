@@ -1,4 +1,5 @@
 "use client";
+import Pagination,{usePagination} from "./Pagination";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Download, Factory, RefreshCw, Search } from "lucide-react";
@@ -81,6 +82,7 @@ export default function ClientRegistry() {
     } finally {busyRef.current=false;setBusy(false);}
   }
   const filtered=rows.filter(row=>clientMatches(row,query,type,status));
+  const pager=usePagination(filtered,query+'|'+type+'|'+status,'clients');
   async function exportRows() {
     if(exportRef.current||loading||loadError||!filtered.length) return;
     exportRef.current=true;setExporting(true);setExportError("");
@@ -124,8 +126,8 @@ export default function ClientRegistry() {
         <div className="board-heading"><div><h2 id="client-list-title">등록된 거래처 <span>{filtered.length}</span></h2><p>이름, 코드, 사업자번호, 담당자와 연락처로 검색합니다.</p></div><div className="board-actions"><div className="search"><Search size={18}/><input aria-label="거래처 검색" value={query} onChange={event=>setQuery(event.target.value)} placeholder="코드·이름·사업자번호·담당자"/></div><button type="button" className="secondary-btn export-btn" onClick={exportRows} disabled={exporting||loading||Boolean(loadError)||!filtered.length}><Download size={16}/>{exporting?"준비 중…":"엑셀 자료받기"}</button><button type="button" className="icon-btn" aria-label="목록 새로고침" onClick={refresh} disabled={loading||busy}><RefreshCw size={18}/></button></div></div>
         <div className="client-filters"><label>구분<select aria-label="거래처 구분 필터" value={type} onChange={event=>setType(event.target.value)}><option value="all">전체</option>{Object.entries(clientTypes).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label>상태<select aria-label="거래처 상태 필터" value={status} onChange={event=>setStatus(event.target.value)}><option value="all">전체</option><option value="active">사용 중</option><option value="inactive">거래중지</option></select></label></div>
         {exportError&&<div className="alert" role="alert">{exportError}</div>}
-        {loading?<div className="empty">거래처를 불러오는 중입니다.</div>:loadError?<div className="empty">목록을 다시 조회해 주세요.</div>:!filtered.length?<div className="empty">{query.trim()?"검색 결과가 없습니다.":"등록된 거래처가 없습니다."}</div>:<div className="client-table-scroll"><table className="registry-table client-table"><thead><tr><th>코드</th><th>거래처</th><th>구분</th><th>담당자·연락처</th><th>사업자등록번호</th><th>상태</th><th>관리</th></tr></thead><tbody>{filtered.map(row=><tr key={row.client_code}><td>{row.client_code}</td><td><strong>{row.client_name}</strong><small>{row.phone||row.contact_info||""}</small></td><td>{clientTypes[row.client_type||"customer"]||row.client_type}</td><td>{row.contact_name||"—"}<small>{row.contact_phone||row.email||""}</small></td><td>{formatBusinessNumber(row.business_number)||"—"}</td><td><span className={row.is_active===false?"client-inactive":"client-active"}>{row.is_active===false?"거래중지":"사용 중"}</span></td><td><button type="button" className="edit-btn" disabled={!ready||busy||loading} onClick={()=>edit(row)}>상세 / 수정</button></td></tr>)}</tbody></table></div>}
-      </section>
+        <Pagination pager={pager}/>{loading?<div className="empty">거래처를 불러오는 중입니다.</div>:loadError?<div className="empty">목록을 다시 조회해 주세요.</div>:!filtered.length?<div className="empty">{query.trim()?"검색 결과가 없습니다.":"등록된 거래처가 없습니다."}</div>:<div className="client-table-scroll"><table className="registry-table client-table"><thead><tr><th>코드</th><th>거래처</th><th>구분</th><th>담당자·연락처</th><th>사업자등록번호</th><th>상태</th><th>관리</th></tr></thead><tbody>{pager.rows.map(row=><tr key={row.client_code}><td>{row.client_code}</td><td><strong>{row.client_name}</strong><small>{row.phone||row.contact_info||""}</small></td><td>{clientTypes[row.client_type||"customer"]||row.client_type}</td><td>{row.contact_name||"—"}<small>{row.contact_phone||row.email||""}</small></td><td>{formatBusinessNumber(row.business_number)||"—"}</td><td><span className={row.is_active===false?"client-inactive":"client-active"}>{row.is_active===false?"거래중지":"사용 중"}</span></td><td><button type="button" className="edit-btn" disabled={!ready||busy||loading} onClick={()=>edit(row)}>상세 / 수정</button></td></tr>)}</tbody></table></div>}
+      <Pagination pager={pager} compact/></section>
     </div>
   </main>;
 }

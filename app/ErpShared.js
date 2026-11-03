@@ -43,9 +43,9 @@ export function useErpMutation(onSuccess){
 export function ErpRequestStatus({mutation,onRetry}){
  return <>{mutation.pending&&<div className="alert" role="status">저장 결과 확인이 필요합니다. 중복 입력하지 말고 같은 요청을 확인하세요.<button type="button" className="secondary-btn" disabled={mutation.busy} onClick={onRetry||mutation.retry}>저장 결과 확인 / 재시도</button></div>}{mutation.error&&<div className="alert" role="alert">{mutation.error}</div>}{mutation.success&&!mutation.pending&&<p className="scan-result success" role="status">{mutation.success}</p>}</>;
 }
-export default function ErpShell({title,kicker,description,state,mutation,children}){
+export default function ErpShell({title,kicker,description,state,mutation,children,setupFile="light_erp.sql"}){
  return <main className="shell"><header className="topbar"><Link href="/" className="brand"><span className="brand-icon"><Factory size={20}/></span><span>FOUNDRY<span className="brand-sub"> 공정 관리</span></span></Link><AppNav/></header><div className="content">
   <div className="eyebrow">{kicker}</div><section className="intro"><div><h1>{title}</h1><p>{description}</p></div><div className="intro-actions"><span className="last-update">{state.updated?state.updated.toLocaleTimeString("ko-KR"):"조회 중"} · 5초마다 갱신</span><button type="button" className="icon-btn" aria-label="새로고침" onClick={state.refresh}><RefreshCw size={18}/></button></div></section>
-  {state.error&&<div className="alert" role="alert">{state.error}{state.setup&&<> <a href="https://github.com/comdago100/test/blob/main/supabase/light_erp.sql" target="_blank" rel="noreferrer">설정 SQL 열기</a></>}</div>}{mutation&&<ErpRequestStatus mutation={mutation}/>}<div className="erp-content">{children}</div>
+  {state.error&&<div className="alert" role="alert">{state.setup?`추가 DB 설정이 필요합니다. ${setupFile}을 적용하세요.`:state.error}{state.setup&&<> <a href={`https://github.com/comdago100/test/blob/main/supabase/${setupFile}`} target="_blank" rel="noreferrer">설정 SQL 열기</a></>}</div>}{mutation&&<ErpRequestStatus mutation={mutation}/>}<div className="erp-content">{children}</div>
  </div></main>;
 }

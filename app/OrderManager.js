@@ -3,12 +3,15 @@ import { useEffect, useState } from "react";
 import { Plus, X, Trash2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { validateOrderId } from "../lib/order-utils";
-import { ErpRequestStatus } from "./ErpShared";
+import { ErpRequestStatus,useErpMutation } from "./ErpShared";
+import ProductFields from './ProductFields';
+import {itemDetails} from '../lib/product-details';
 
 
 const blank = () => ({ wo_id: "", client_code:"", item_code:"", target_qty:"", due_date:"", start_date:"", actual_qty:"", unit_weight_kg:"", heat_no:"", casting_material:"", notes:"", routing_code:"" });
 const fields = ["wo_id","client_code","item_code","target_qty","due_date","start_date","actual_qty","unit_weight_kg","heat_no","casting_material","notes","routing_code"];
 function msg(error) {
+  if(error?.code==="23503"&&error?.message?.includes("inspection_reports"))return "검사성적서가 연결된 작업지시는 삭제할 수 없습니다. 성적서와 작업 이력을 보관하고 필요한 입력 내용을 수정하세요.";
   if (error?.code === "23505") return "이미 사용 중인 번호 또는 코드입니다. 다른 값을 입력하세요.";
   if (error?.code === "42501" || error?.message?.includes("관리자 권한")) return "로그인 없는 저장을 위한 DB 권한 설정이 아직 적용되지 않았습니다. 설정 SQL을 실행해 주세요.";
   const text = error?.message || "처리하지 못했습니다. 연결 상태를 확인하세요.";
@@ -25,6 +28,8 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
   const [routingReady,setRoutingReady] = useState(false);
   const [routingLoading,setRoutingLoading] = useState(true);
   const [routingError,setRoutingError] = useState("");
+  const ownMutation=useErpMutation(onSaved),mutation=linkedMutation||ownMutation;
+  const detailed=items.some(i=>i.product_details!==undefined)||order?.product_details!==undefined;
   useEffect(() => {
     let active=true;
     async function loadRoutes(){
@@ -45,16 +50,16 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
     return()=>{active=false;};
   },[mode]);
   useEffect(() => {
-    if (mode === "create") { setForm({...blank(),...(salesOrder?{client_code:salesOrder.client_code,item_code:salesOrder.item_code,target_qty:String(salesOrder.unallocated_qty),due_date:salesOrder.due_date||""}:{})}); setRows([]); }
+    if (mode === "create") { setForm({...blank(),product_details:salesOrder?.product_details||{},...(salesOrder?{client_code:salesOrder.client_code,item_code:salesOrder.item_code,target_qty:String(salesOrder.unallocated_qty),due_date:salesOrder.due_date||"",casting_material:salesOrder.product_details?.material||""}:{})}); setRows([]); }
     if (mode === "edit" && order) {
-      setForm(Object.fromEntries(fields.map(k => [k, order[k] ?? ""])));
+      setForm({...Object.fromEntries(fields.map(k => [k, order[k] ?? ""])),product_details:order.product_details||{}});
       setRows(usage.map(x => ({usage_id:x.usage_id, raw_code:x.raw_code, input_qty:String(x.input_qty)})));
     }
     setError("");
   }, [mode, order, usage, salesOrder]);
 
   if (!mode) return null;
-  function change(key,value) { setForm(old => ({...old,[key]:value})); }
+  function change(key,value) { setForm(old => ({...old,[key]:value,...(key==='item_code'&&detailed?{product_details:{...itemDetails(items.find(i=>i.item_code===value)),po_no:old.product_details?.po_no||'',po_line:old.product_details?.po_line||''},casting_material:itemDetails(items.find(i=>i.item_code===value)).material}:{}),...(key==='casting_material'&&detailed?{product_details:{...old.product_details,material:value}}:{})})); }
   function rowChange(index,key,value) { setRows(old => old.map((x,i) => i === index ? {...x,[key]:value} : x)); }
   async function save(e) {
     e.preventDefault(); setError("");
@@ -69,9 +74,10 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
     if (salesOrder) {
       if(!routingReady)return setError("라우팅 DB 설정을 먼저 적용하세요.");
       if(Number(form.target_qty)>Number(salesOrder.unallocated_qty))return setError("미지시 수량보다 많이 발행할 수 없습니다.");
-      const result=await linkedMutation.run("create_sales_work_order",{p_order_id:salesOrder.order_id,p_expected_revision:salesOrder.revision,p_order:{...form,wo_id:form.wo_id.trim()},p_materials:rows});
+      const result=await linkedMutation.run(salesOrder.product_details!==undefined?"create_detailed_sales_work_order":"create_sales_work_order",{p_order_id:salesOrder.order_id,p_expected_revision:salesOrder.revision,p_order:{...form,wo_id:form.wo_id.trim()},p_materials:rows});
       if(result){await onSaved();close();}return;
     }
+    if(detailed){const result=await mutation.run('save_detailed_work_order',{p_order:{...form,wo_id:form.wo_id.trim()},p_materials:rows,p_create:mode==='create',p_original_usage_ids:usage.map(x=>String(x.usage_id)),p_expected_revision:order?.details_revision??null});if(result)close();return;}
     setBusy(true);
     const {error} = await supabase.rpc(routingReady ? "save_routed_production_order" : "save_production_order", {p_order:{...form, wo_id:form.wo_id.trim()}, p_materials:rows, p_create:mode==="create", p_original_usage_ids:usage.map(x=>String(x.usage_id))});
     setBusy(false);
@@ -96,22 +102,23 @@ export default function OrderManager({ mode, order, usage, clients, items, mater
         <label>거래처 <em>*</em><select aria-label="거래처" required disabled={Boolean(salesOrder||order?.order_id)} value={form.client_code} onChange={e=>change("client_code",e.target.value)}><option value="">선택하세요</option>{clients.filter(client=>client.is_active!==false || mode==="edit" && client.client_code===order?.client_code).map(x=><option key={x.client_code} value={x.client_code}>{x.client_name} ({x.client_code})</option>)}</select></label>
         <label>품목 <em>*</em><select aria-label="품목" required disabled={Boolean(salesOrder||order?.order_id)} value={form.item_code} onChange={e=>change("item_code",e.target.value)}><option value="">선택하세요</option>{items.map(x=><option key={x.item_code} value={x.item_code}>{x.item_name} ({x.item_code})</option>)}</select></label>
         <label>라우팅 {mode==="create" && <em>*</em>}{mode==="edit" ? <><input readOnly value={order.routing_name || "기존 6공정"}/><small>발행 시점의 공정과 이력을 유지합니다.</small></> : <><select aria-label="라우팅" value={form.routing_code} disabled={routingLoading || !routingReady} onChange={e=>change("routing_code",e.target.value)} required={routingReady}><option value="">{routingLoading?"불러오는 중":routingReady?"선택하세요":"기존 6공정 (DB 설정 필요)"}</option>{routes.map(r=><option key={r.routing_code} value={r.routing_code}>{r.routing_name}</option>)}</select><small>{routingError || (!routingReady && !routingLoading ? "라우팅 관리에서 DB 설정 후 새 공정을 선택할 수 있습니다." : routes.find(r=>r.routing_code===form.routing_code)?.steps.map(s=>s.name).join(" → "))}</small></>}</label>
-        <label>목표 수량 (개) <em>*</em><input type="number" min="1" step="1" required value={form.target_qty} onChange={e=>change("target_qty",e.target.value)}/></label>
+        {!detailed&&<label>목표 수량 (개) <em>*</em><input type="number" min="1" step="1" required value={form.target_qty} onChange={e=>change("target_qty",e.target.value)}/></label>}
         <label>작업 시작일<input type="date" value={form.start_date} onChange={e=>change("start_date",e.target.value)}/></label>
         <label>납기일<input type="date" readOnly={Boolean(salesOrder)} value={form.due_date} onChange={e=>change("due_date",e.target.value)}/></label>
         <label>검사 완료 수량 (자동)<input type="number" readOnly value={form.actual_qty || 0}/><small>현장 스캐너의 검사 완료 실적에서 자동 계산합니다.</small></label>
         <label>제품 단중 (kg)<input type="number" min="0" step="0.01" value={form.unit_weight_kg} onChange={e=>change("unit_weight_kg",e.target.value)}/></label>
         <label>용해 번호 / 로트<input value={form.heat_no} onChange={e=>change("heat_no",e.target.value)} maxLength={120}/></label>
-        <label>주물 재질<input value={form.casting_material} onChange={e=>change("casting_material",e.target.value)} maxLength={120} placeholder="예: FC250"/></label>
+        {!detailed&&<label>주물 재질<input value={form.casting_material} onChange={e=>change("casting_material",e.target.value)} maxLength={120} placeholder="예: FC250"/></label>}
       </div><label className="full-label">작업 메모<textarea value={form.notes} onChange={e=>change("notes",e.target.value)} rows="3" maxLength={2000} placeholder="검사 기준, 특이사항 등"/></label></div>
+      {detailed&&<div className="form-section"><h3>제품·주문 정보</h3><ProductFields quantityControl={<label>목표 수량 (개) <em>*</em><input disabled={mutation.busy||Boolean(mutation.pending)} type="number" min="1" step="1" required value={form.target_qty} onChange={e=>change("target_qty",e.target.value)}/></label>} value={form.product_details} disabled={Boolean(salesOrder)||mutation.busy||Boolean(mutation.pending)} onChange={value=>setForm(old=>({...old,product_details:value,casting_material:value.material||''}))}/>{salesOrder&&<p className="registry-hint">수주에 저장한 제품정보를 그대로 가져옵니다. 발행 후 작업지시별로 수정할 수 있습니다.</p>}</div>}
       <div className="form-section"><div className="section-row"><div><h3>원재료 투입</h3><p>실제로 투입한 자재와 중량을 입력합니다.</p></div><button className="secondary-btn add-material" type="button" onClick={()=>setRows(old=>[...old,{raw_code:"",input_qty:""}])}><Plus size={15}/> 자재 추가</button></div>
         {rows.length === 0 && <p className="no-materials">등록된 투입 내역이 없습니다.</p>}
         {rows.map((row,i)=><div className="material-input-row" key={row.usage_id || `new-${i}`}><select aria-label={`원재료 ${i+1}`} required value={row.raw_code} onChange={e=>rowChange(i,"raw_code",e.target.value)}><option value="">원재료 선택</option>{materials.map(x=><option key={x.raw_code} value={x.raw_code}>{x.raw_name} ({x.raw_code})</option>)}</select><input aria-label={`투입 중량 ${i+1}`} type="number" min="0.01" step="0.01" required value={row.input_qty} onChange={e=>rowChange(i,"input_qty",e.target.value)} placeholder="투입 중량 (kg)"/><button type="button" className="icon-btn" aria-label="자재 삭제" onClick={()=>setRows(old=>old.filter((_,j)=>j!==i))}><X size={17}/></button></div>)}
         <div className="material-total">총 투입 중량 <strong>{rows.reduce((sum,x)=>sum+(Number(x.input_qty)||0),0).toLocaleString("ko-KR",{maximumFractionDigits:2})} kg</strong></div>
       </div>
       {error && <div className="alert" role="alert">{error}</div>}
-      {linkedMutation&&<ErpRequestStatus mutation={linkedMutation} onRetry={async()=>{if(await linkedMutation.retry()){await onSaved();close();}}}/>}
-      <div className="form-actions">{mode==="edit" && <button className="delete-btn" type="button" onClick={remove} disabled={busy}><Trash2 size={16}/> 삭제</button>}<div/><button className="secondary-btn" type="button" onClick={close}>취소</button><button className="primary-btn" disabled={busy || routingLoading || Boolean(routingError) || Boolean(linkedMutation?.busy||linkedMutation?.pending)}>{busy||linkedMutation?.busy?"저장 중...":"작업지시 저장"}</button></div>
+      {(detailed||linkedMutation)&&<ErpRequestStatus mutation={mutation} onRetry={async()=>{if(await mutation.retry()){await onSaved();close();}}}/>}
+      <div className="form-actions">{mode==="edit" && <button className="delete-btn" type="button" onClick={remove} disabled={busy||mutation.busy||Boolean(mutation.pending)}><Trash2 size={16}/> 삭제</button>}<div/><button className="secondary-btn" type="button" onClick={close}>취소</button><button className="primary-btn" disabled={busy || routingLoading || Boolean(routingError) || Boolean(mutation.busy||mutation.pending)}>{busy||mutation.busy?"저장 중...":"작업지시 저장"}</button></div>
     </form>}
   </section></div>;
 }

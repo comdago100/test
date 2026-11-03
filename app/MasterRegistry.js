@@ -1,4 +1,5 @@
 "use client";
+import Pagination,{usePagination} from "./Pagination";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Download, Factory, RefreshCw, Search } from "lucide-react";
@@ -67,6 +68,7 @@ export default function MasterRegistry({ kind }) {
     } finally { busyRef.current = false; setBusy(false); }
   }
   const filtered = rows.filter(row => `${row[config.code]} ${row[config.name]}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const pager=usePagination(filtered,query,kind);
   async function exportRows() {
     if (exportBusyRef.current || loading || loadError || !filtered.length) return;
     exportBusyRef.current = true; setExporting(true); setExportError("");
@@ -96,8 +98,8 @@ export default function MasterRegistry({ kind }) {
         <div className="board-heading"><div><h2 id="registry-list-title">등록된 {config.title} <span>{filtered.length}</span></h2><p>코드와 이름으로 검색할 수 있습니다.</p></div><div className="board-actions"><div className="search"><Search size={18}/><input aria-label={`${config.title} 검색`} value={query} onChange={e => setQuery(e.target.value)} placeholder="코드 또는 이름 검색"/></div><button type="button" className="secondary-btn export-btn" onClick={exportRows} disabled={exporting || loading || Boolean(loadError) || !filtered.length}><Download size={16}/>{exporting ? "준비 중…" : "엑셀 자료받기"}</button><button type="button" className="icon-btn" onClick={refresh} disabled={loading || busy} aria-label="목록 새로고침"><RefreshCw size={18}/></button></div></div>
         {loadError && <div className="alert" role="alert">{loadError}</div>}
         {exportError && <div className="alert" role="alert">{exportError}</div>}
-        {loading ? <div className="empty">목록을 불러오는 중입니다.</div> : loadError ? <div className="empty">목록을 확인할 수 없습니다. 새로고침해 주세요.</div> : filtered.length ? <table className="registry-table"><thead><tr><th scope="col">{config.title} 코드</th><th scope="col">{config.title}명</th></tr></thead><tbody>{filtered.map(row => <tr key={row[config.code]}><td>{row[config.code]}</td><td>{row[config.name]}</td></tr>)}</tbody></table> : <div className="empty">{query.trim() ? "검색 결과가 없습니다." : `등록된 ${config.title} 정보가 없습니다. 위에서 먼저 등록하세요.`}</div>}
-      </section>
+        <Pagination pager={pager}/>{loading ? <div className="empty">목록을 불러오는 중입니다.</div> : loadError ? <div className="empty">목록을 확인할 수 없습니다. 새로고침해 주세요.</div> : filtered.length ? <table className="registry-table"><thead><tr><th scope="col">{config.title} 코드</th><th scope="col">{config.title}명</th></tr></thead><tbody>{pager.rows.map(row => <tr key={row[config.code]}><td>{row[config.code]}</td><td>{row[config.name]}</td></tr>)}</tbody></table> : <div className="empty">{query.trim() ? "검색 결과가 없습니다." : `등록된 ${config.title} 정보가 없습니다. 위에서 먼저 등록하세요.`}</div>}
+      <Pagination pager={pager} compact/></section>
     </div>
   </main>;
 }

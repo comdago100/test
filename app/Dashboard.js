@@ -2,6 +2,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AppNav from "./AppNav";
+import Pagination,{usePagination} from './Pagination';
+import {ProductSummary} from './ProductFields';
+import {detailsText} from '../lib/product-details';
 import { Activity, ArrowRight, Boxes, CheckCircle2, Clock3, Download, Factory, Layers3, RefreshCw, ScanLine, Search, Plus } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import OrderManager from "./OrderManager";
@@ -59,10 +62,11 @@ export default function Dashboard({ manage = false }) {
     return result;
   }, [usage]);
   const filtered = orders.filter(o => {
-    const text = [o.wo_id, o.client_code, clientNames[o.client_code], o.item_code, itemNames[o.item_code], o.routing_name].join(" ").toLowerCase();
+    const text = [o.wo_id, o.client_code, clientNames[o.client_code], o.item_code, itemNames[o.item_code], o.routing_name,detailsText(o)].join(" ").toLowerCase();
     return (!salesScope||o.order_id===salesScope) && text.includes(query.toLowerCase().trim()) && matchesStage(o, filter);
   });
   const complete = orders.filter(o => getProgress(o).complete).length;
+  const pager=usePagination(filtered,query+'|'+filter+'|'+salesScope,manage?'orders':'dashboard');
   const progress = orders.filter(o => { const p = getProgress(o); return p.started && !p.complete; }).length;
   const waiting = orders.filter(o => !getProgress(o).started).length;
 
@@ -86,8 +90,8 @@ export default function Dashboard({ manage = false }) {
       <section className="board">
         <div className="board-heading"><div><span className="section-kicker">WORK ORDERS</span><h2>작업지시 현황 <span>{filtered.length}</span></h2><p>공정별 수량과 출고 잔량을 확인합니다. 공정 필터는 해당 공정을 처리할 수 있는 작업을 표시합니다.</p></div><div className="board-actions"><div className="search"><Search size={18}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="지시번호, 거래처, 품목 검색" aria-label="작업지시 검색"/></div><button type="button" className="secondary-btn export-btn" disabled={loading || Boolean(error) || !orders.length} onClick={() => setExportData({orders, currentOrders:filtered, clients, items, materials, usage, updated, query, filter})}><Download size={16}/> 엑셀 자료받기</button>{manage && <button className="primary-btn" onClick={() => setEditor({mode:"create", order:null, usage:[]})}><Plus size={17}/> 작업지시 등록</button>}</div></div>
         <div className="filters">{["전체", "대기", ...new Set(orders.flatMap(o=>getOrderSteps(o).map(s=>s.name))), "출고 완료", "수량 확인", "불량 보류", "폐기 발생"].map(f => <button key={f} className={filter === f ? "filter active" : "filter"} onClick={() => setFilter(f)}>{f}</button>)}</div>
-        <div className="table-head"><span>작업지시 / 거래처</span><span>생산 품목</span><span>공정 진행</span><span>목표 수량</span><span>발행일</span></div>
-        {loading ? <div className="empty">작업지시를 불러오는 중입니다.</div> : !filtered.length ? <div className="empty"><Boxes size={26}/><strong>표시할 작업지시가 없습니다</strong><span>검색 조건이나 연결 설정을 확인해 주세요.</span></div> : filtered.map(o => {
+        <Pagination pager={pager}/><div className="table-head"><span>작업지시 / 거래처</span><span>생산 품목</span><span>공정 진행</span><span>목표 수량</span><span>발행일</span></div>
+        {loading ? <div className="empty">작업지시를 불러오는 중입니다.</div> : !filtered.length ? <div className="empty"><Boxes size={26}/><strong>표시할 작업지시가 없습니다</strong><span>검색 조건이나 연결 설정을 확인해 주세요.</span></div> : pager.rows.map(o => {
           const p = getProgress(o);
           return <article className="order" key={o.wo_id}>
             <div className="order-grid">
@@ -101,9 +105,10 @@ export default function Dashboard({ manage = false }) {
             {(p.heldTotal>0||p.scrapTotal>0)&&<div className="quality-summary compact"><span>불량 보류 <strong>{p.heldTotal.toLocaleString()}개</strong></span><span>확정 폐기 <strong>{p.scrapTotal.toLocaleString()}개</strong></span><Link href={`/scanner/?wo_id=${encodeURIComponent(o.wo_id)}`}>불량 확인 / 처리</Link></div>}
             <div className="order-details"><span>라우팅<strong>{o.routing_name || "기존 6공정"}</strong></span>{o.start_date && <span>작업 시작<strong>{dateText(o.start_date)}</strong></span>}{o.due_date && <span>납기<strong>{dateText(o.due_date)}</strong></span>}{o.actual_qty != null && <span>실제 생산<strong>{Number(o.actual_qty).toLocaleString()} 개</strong></span>}{o.unit_weight_kg != null && <span>단중<strong>{Number(o.unit_weight_kg).toLocaleString()} kg</strong></span>}{o.heat_no && <span>용해 번호<strong>{o.heat_no}</strong></span>}{o.casting_material && <span>재질<strong>{o.casting_material}</strong></span>}{manage && <button className="edit-btn" onClick={() => setEditor({mode:"edit",order:{...o},usage:(usageByOrder[o.wo_id] || []).map(x=>({...x}))})}>수정 / 삭제</button>}{manage && <button className="edit-btn" onClick={() => setPrintOrder(o)}>지시서 / QR 인쇄</button>}</div><div className="material-line"><Boxes size={14}/><span>자재 투입</span>{usageByOrder[o.wo_id]?.length ? usageByOrder[o.wo_id].map((u, i) => <span className="material-chip" key={u.usage_id || i}>{materialNames[u.raw_code] || u.raw_code} {Number(u.input_qty).toLocaleString()} kg</span>) : <span className="muted">기록 없음</span>}</div>
             {o.notes && <p className="order-note">메모 · {o.notes}</p>}
+            <ProductSummary value={o.product_details}/>{manage&&<div className="erp-actions"><Link className="edit-btn" href={`/inspections/?wo_id=${encodeURIComponent(o.wo_id)}`}>검사성적서</Link></div>}
             {o.order_id&&<div className="erp-actions"><Link className="edit-btn" href={`/sales/?order_id=${encodeURIComponent(o.order_id)}`}>연결 수주 보기</Link></div>}
           </article>;
-        })}
+        })}<Pagination pager={pager} compact/>
       </section>
       <footer>FOUNDRY OPERATIONS <span>현장과 사무실을 하나로</span></footer>
     </div>
